@@ -1,7 +1,5 @@
 @import "tailwindcss";
 
-@custom-variant dark (&:is(.dark *));
-
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -36,6 +34,10 @@
   --color-card: var(--card);
   --color-popover-foreground: var(--popover-foreground);
   --color-popover: var(--popover);
+  --color-success-foreground: var(--success-foreground);
+  --color-success: var(--success);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-warning: var(--warning);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -48,73 +50,49 @@
   --ease-drift: cubic-bezier(0.4, 0, 0.6, 1);
 }
 
+/*
+ * Finance Tracker — Soft-Tactile palette, light mode only.
+ * See DESIGN.md at the project root for the full rationale.
+ * This app has no dark mode toggle by design — do not add a .dark block back.
+ */
 :root {
   --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
-}
-
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.145 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.145 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.985 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.269 0 0);
-  --input: oklch(0.269 0 0);
-  --ring: oklch(0.439 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(0.269 0 0);
-  --sidebar-ring: oklch(0.439 0 0);
+  --background: #faf9f5;
+  --foreground: #2b2b27;
+  --card: #ffffff;
+  --card-foreground: #2b2b27;
+  --popover: #ffffff;
+  --popover-foreground: #2b2b27;
+  --primary: #7c9473;
+  --primary-foreground: #2b2b27;
+  --secondary: #f1efe9;
+  --secondary-foreground: #2b2b27;
+  --muted: #f1efe9;
+  --muted-foreground: #6b6b62;
+  --accent: #e8ede4;
+  --accent-foreground: #2b2b27;
+  --destructive: #b5493f;
+  --destructive-foreground: #ffffff;
+  --success: #4f7a4a;
+  --success-foreground: #ffffff;
+  --warning: #b8873b;
+  --warning-foreground: #2b2b27;
+  --border: #e8e6df;
+  --input: #e8e6df;
+  --ring: #7c9473;
+  --chart-1: #7c9473;
+  --chart-2: #4f7a4a;
+  --chart-3: #b8873b;
+  --chart-4: #b5493f;
+  --chart-5: #6b6b62;
+  --sidebar: #f4f2ec;
+  --sidebar-foreground: #2b2b27;
+  --sidebar-primary: #7c9473;
+  --sidebar-primary-foreground: #2b2b27;
+  --sidebar-accent: #e8ede4;
+  --sidebar-accent-foreground: #2b2b27;
+  --sidebar-border: #e8e6df;
+  --sidebar-ring: #7c9473;
 }
 
 @layer base {

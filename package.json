@@ -1,7 +1,7 @@
 {
-  "name": "simos-agentic-boilerplate",
+  "name": "finance-tracker",
   "version": "1.0.0",
-  "description": "Simo's Agentic Coding Boilerplate — Create webapps like Simo",
+  "description": "App personale per monitorare costi, ricavi e tasso di risparmio",
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "pnpm run db:migrate && next build",
@@ -24,6 +24,7 @@
   },
   "dependencies": {
     "@ai-sdk/react": "^3.0.170",
+    "@hookform/resolvers": "^6.0.0",
     "@openrouter/ai-sdk-provider": "^2.8.0",
     "@radix-ui/react-avatar": "^1.1.11",
     "@radix-ui/react-dialog": "^1.1.15",
@@ -35,6 +36,7 @@
     "better-auth": "^1.4.18",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "date-fns": "^4.4.0",
     "drizzle-orm": "^0.44.7",
     "lucide-react": "^0.539.0",
     "next": "16.1.6",
@@ -43,11 +45,14 @@
     "postgres": "^3.4.8",
     "radix-ui": "^1.4.3",
     "react": "19.2.4",
+    "react-day-picker": "^10.0.2",
     "react-dom": "19.2.4",
+    "react-hook-form": "^7.90.0",
     "react-markdown": "^10.1.0",
     "resend": "^6.9.3",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.4.0",
+    "xlsx": "^0.18.5",
     "zod": "^4.3.6"
   },
   "devDependencies": {

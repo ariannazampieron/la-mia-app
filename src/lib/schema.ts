@@ -1,4 +1,15 @@
-import { pgTable, text, timestamp, boolean, index } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  text,
+  timestamp,
+  boolean,
+  index,
+  uuid,
+  numeric,
+  integer,
+  date,
+  unique,
+} from "drizzle-orm/pg-core";
 
 // =============================================================================
 // AUTHENTICATION TABLES (managed by Better Auth)
@@ -87,15 +98,148 @@ export const verification = pgTable("verification", {
 });
 
 // =============================================================================
-// YOUR APP TABLES
+// FINANCE TRACKER TABLES
 // =============================================================================
-// Add your own tables below. Use UUIDs for primary keys:
-//
-// import { uuid } from "drizzle-orm/pg-core";
-//
-// export const myTable = pgTable("my_table", {
-//   id: uuid("id").defaultRandom().primaryKey(),
-//   userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
-//   ...
-// });
+
+export const financeAccounts = pgTable(
+  "finance_accounts",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    isSavingsAccount: boolean("is_savings_account").default(false).notNull(),
+    openingBalance: numeric("opening_balance", { precision: 12, scale: 2 })
+      .default("0")
+      .notNull(),
+    openingBalanceDate: date("opening_balance_date"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (t) => [index("finance_accounts_user_id_idx").on(t.userId)]
+);
+
+export const categories = pgTable(
+  "categories",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    type: text("type", { enum: ["expense", "income"] }).notNull(),
+    isTaxPaymentCategory: boolean("is_tax_payment_category")
+      .default(false)
+      .notNull(),
+    isClientRevenueCategory: boolean("is_client_revenue_category")
+      .default(false)
+      .notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (t) => [index("categories_user_id_idx").on(t.userId)]
+);
+
+export const transactions = pgTable(
+  "transactions",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    accountId: uuid("account_id")
+      .notNull()
+      .references(() => financeAccounts.id, { onDelete: "cascade" }),
+    categoryId: uuid("category_id").references(() => categories.id, {
+      onDelete: "set null",
+    }),
+    date: date("date").notNull(),
+    description: text("description").notNull(),
+    amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
+    type: text("type", { enum: ["income", "expense"] }).notNull(),
+    isInternalTransfer: boolean("is_internal_transfer")
+      .default(false)
+      .notNull(),
+    source: text("source", { enum: ["import", "manual"] })
+      .notNull()
+      .default("manual"),
+    importBatchId: uuid("import_batch_id"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (t) => [
+    index("transactions_user_id_idx").on(t.userId),
+    index("transactions_account_id_idx").on(t.accountId),
+    index("transactions_category_id_idx").on(t.categoryId),
+    index("transactions_date_idx").on(t.date),
+  ]
+);
+
+export const budgetEntries = pgTable(
+  "budget_entries",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    year: integer("year").notNull(),
+    month: integer("month").notNull(),
+    categoryId: uuid("category_id")
+      .notNull()
+      .references(() => categories.id, { onDelete: "cascade" }),
+    plannedAmount: numeric("planned_amount", { precision: 12, scale: 2 })
+      .default("0")
+      .notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (t) => [
+    index("budget_entries_user_year_idx").on(t.userId, t.year),
+    unique("budget_entries_unique_cell").on(
+      t.userId,
+      t.year,
+      t.month,
+      t.categoryId
+    ),
+  ]
+);
+
+export const casaManualTotals = pgTable(
+  "casa_manual_totals",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    section: text("section", {
+      enum: [
+        "acquisto",
+        "ristrutturazione",
+        "arredamento",
+        "accessori",
+        "utenze_manutenzione",
+      ],
+    }).notNull(),
+    year: integer("year").notNull(),
+    amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (t) => [
+    index("casa_manual_totals_user_idx").on(t.userId),
+    unique("casa_manual_totals_unique_cell").on(t.userId, t.section, t.year),
+  ]
+);
 // =============================================================================

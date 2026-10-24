@@ -1,9 +1,7 @@
-"use client";
+import { redirect } from "next/navigation";
+import { getOptionalSession } from "@/lib/session";
 
-import dynamic from "next/dynamic";
-
-const HomeContent = dynamic(() => import("./home-content"), { ssr: false });
-
-export default function HomePage() {
-  return <HomeContent />;
+export default async function RootPage() {
+  const session = await getOptionalSession();
+  redirect(session ? "/dashboard" : "/login");
 }

@@ -1,16 +1,16 @@
-# Simo's Agentic Coding Boilerplate — AI Assistant Guidelines
+# Finance Tracker — AI Assistant Guidelines
 
 ## Project Overview
 
-A production-ready Next.js boilerplate for building AI-powered web applications. Works with any modern AI coding agent — Claude Code, OpenAI Codex, or Cursor Composer.
+App personale (utente singolo) per monitorare costi, ricavi e tasso di risparmio basata sull'import di estratti conto, con budget annuale e conto economico mensile. Vedi `docs/business/starter-prompt.md` per il contesto completo di prodotto e `DESIGN.md` per la direzione visiva.
 
 ### Tech Stack
 
 - **Framework**: Next.js 16 (App Router, Turbopack), React 19, TypeScript 5.9
-- **AI**: Vercel AI SDK 5 + OpenRouter (100+ models via single API)
-- **Auth**: Better Auth (email/password + Google OAuth)
+- **AI**: Vercel AI SDK 5 + OpenRouter — usata per la categorizzazione automatica delle transazioni importate
+- **Auth**: Better Auth — Email OTP (nessuna password, nessuna registrazione pubblica)
 - **Database**: PostgreSQL + Drizzle ORM
-- **UI**: shadcn/ui + Tailwind CSS 4 + dark mode (next-themes)
+- **UI**: shadcn/ui + Tailwind CSS 4 — light mode permanente, nessun dark mode
 - **Storage**: Local filesystem (dev) / Vercel Blob (production)
 - **Package Manager**: pnpm
 

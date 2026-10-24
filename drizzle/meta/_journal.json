@@ -8,6 +8,20 @@
       "when": 1772474236275,
       "tag": "0000_stormy_skaar",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1792861105494,
+      "tag": "0001_nervous_eternals",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792875280157,
+      "tag": "0002_mighty_dracula",
+      "breakpoints": true
     }
   ]
 }

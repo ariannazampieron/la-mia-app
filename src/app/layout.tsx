@@ -11,8 +11,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Simo's Agentic Coding Boilerplate",
-  description: "Create webapps like Simo",
+  title: "Finance Tracker",
+  description: "Monitora costi, ricavi e risparmio personali",
 };
 
 export default function RootLayout({
@@ -27,8 +27,8 @@ export default function RootLayout({
       >
         <ThemeProvider
           attribute="class"
-          defaultTheme="system"
-          enableSystem
+          defaultTheme="light"
+          forcedTheme="light"
           disableTransitionOnChange
         >
           {children}

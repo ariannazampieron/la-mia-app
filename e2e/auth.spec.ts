@@ -1,44 +1,29 @@
 import { test, expect } from "@playwright/test";
 
 /**
- * Auth flow E2E tests.
+ * Auth flow E2E tests for the Email OTP login.
  *
- * These are the starter tests for the boilerplate.
- * Add your own feature tests in this directory as you build.
- *
- * Pattern:
- *   - Group related tests with test.describe()
- *   - Use page.goto() with relative paths (baseURL is set in playwright.config.ts)
- *   - Use getByRole / getByLabel / getByPlaceholder over CSS selectors — more resilient
+ * A full login (requesting + verifying a real code) isn't automated here —
+ * the code is sent by email (or logged server-side only when RESEND_API_KEY
+ * is unset), so there is no inbox for Playwright to read it from.
  */
 
 test.describe("Pages load correctly", () => {
-  test("login page", async ({ page }) => {
+  test("login page shows the email step", async ({ page }) => {
     await page.goto("/login");
-    await expect(page.getByRole("heading", { name: "Welcome back" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Finance Tracker" })).toBeVisible();
     await expect(page.getByLabel("Email")).toBeVisible();
-    await expect(page.getByLabel("Password")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Sign in" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Invia codice" })).toBeVisible();
   });
 
-  test("register page", async ({ page }) => {
+  test("register and reset-password routes redirect to login", async ({ page }) => {
     await page.goto("/register");
-    await expect(page.getByRole("heading", { name: "Create an account" })).toBeVisible();
-    await expect(page.getByLabel("Name")).toBeVisible();
-    await expect(page.getByLabel("Email")).toBeVisible();
-    await expect(page.getByLabel("Password")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Create account" })).toBeVisible();
-  });
+    await expect(page).toHaveURL("/login");
 
-  test("login links to register", async ({ page }) => {
-    await page.goto("/login");
-    await page.getByRole("link", { name: "Sign up" }).click();
-    await expect(page).toHaveURL("/register");
-  });
+    await page.goto("/forgot-password");
+    await expect(page).toHaveURL("/login");
 
-  test("register links to login", async ({ page }) => {
-    await page.goto("/register");
-    await page.getByRole("link", { name: "Sign in" }).click();
+    await page.goto("/reset-password");
     await expect(page).toHaveURL("/login");
   });
 });
@@ -46,41 +31,25 @@ test.describe("Pages load correctly", () => {
 test.describe("Auth guards", () => {
   test("unauthenticated user cannot access /dashboard", async ({ page }) => {
     await page.goto("/dashboard");
-    // requireAuth() redirects to "/" when there's no session
-    await expect(page).toHaveURL("/");
+    // requireAuth() redirects to "/", which itself redirects unauthenticated users to "/login"
+    await expect(page).toHaveURL("/login");
   });
 
   test("unauthenticated user cannot access /profile", async ({ page }) => {
     await page.goto("/profile");
-    await expect(page).toHaveURL("/");
+    await expect(page).toHaveURL("/login");
   });
 });
 
-test.describe("Registration flow", () => {
-  test("register with valid credentials and land on dashboard", async ({ page }) => {
-    await page.goto("/register");
+test.describe("Email OTP request", () => {
+  test("requesting a code moves to the verification step", async ({ page }) => {
+    await page.goto("/login");
 
-    // Use a unique email so this test can be run multiple times
     const email = `test-${Date.now()}@example.com`;
-
-    await page.getByLabel("Name").fill("Test User");
     await page.getByLabel("Email").fill(email);
-    await page.getByLabel("Password").fill("password123");
-    await page.getByRole("button", { name: "Create account" }).click();
+    await page.getByRole("button", { name: "Invia codice" }).click();
 
-    // After registration, the user is redirected to /dashboard
-    await expect(page).toHaveURL("/dashboard");
-  });
-
-  test("register with short password shows validation error", async ({ page }) => {
-    await page.goto("/register");
-
-    await page.getByLabel("Name").fill("Test User");
-    await page.getByLabel("Email").fill("test@example.com");
-    await page.getByLabel("Password").fill("short");
-    await page.getByRole("button", { name: "Create account" }).click();
-
-    // HTML5 minLength validation prevents submission — stays on /register
-    await expect(page).toHaveURL("/register");
+    await expect(page.getByRole("heading", { name: "Controlla la tua email" })).toBeVisible();
+    await expect(page.getByLabel("Codice di verifica")).toBeVisible();
   });
 });
