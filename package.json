@@ -2,6 +2,7 @@
   "name": "finance-tracker",
   "version": "1.0.0",
   "description": "App personale per monitorare costi, ricavi e tasso di risparmio",
+  "packageManager": "pnpm@12.3.4",
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "pnpm run db:migrate && next build",
@@ -75,7 +76,7 @@
   },
   "engines": {
     "node": ">=20",
-    "pnpm": ">=9"
+    "pnpm": ">=12"
   },
   "pnpm": {
     "overrides": {
