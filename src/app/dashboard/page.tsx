@@ -67,6 +67,8 @@ export default async function DashboardPage() {
           title="Risparmio"
           value={risparmio}
           tone="sage"
+          percentage={fatturato > 0 ? (risparmio / fatturato) * 100 : 0}
+          percentageLabel="Tasso di risparmio sul fatturato"
           breakdown={[
             { label: savingsAccount?.name ?? "Conto risparmio", value: savingsBalance },
             { label: "Fondo tasse accantonato", value: -fondoTasse },
@@ -75,7 +77,7 @@ export default async function DashboardPage() {
         <IndicatorCard
           title="Fondo Tasse"
           value={fondoTasse}
-          tone="ochre"
+          tone="sage"
           breakdown={[
             { label: "Fatturato annuale (23%)", value: fatturato * 0.23 },
             { label: "Imposte già pagate", value: -imposte },
@@ -84,7 +86,7 @@ export default async function DashboardPage() {
         <IndicatorCard
           title="Liquidità disponibile"
           value={liquidita}
-          tone="moss"
+          tone="sage"
           breakdown={[{ label: "Somma conti non di risparmio", value: liquidita }]}
         />
       </div>

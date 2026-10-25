@@ -74,13 +74,10 @@ export function AccountCard({
   }
 
   return (
-    <Card style={{ backgroundColor: colors.bgSoft, borderColor: `${colors.bg}33` }}>
+    <Card style={{ borderTopWidth: "4px", borderTopColor: colors.bg }}>
       <CardHeader>
         <div className="flex items-start justify-between">
-          <CardTitle
-            className="flex items-center gap-2 text-base"
-            style={{ color: colors.text }}
-          >
+          <CardTitle className="flex items-center gap-2 text-base font-bold text-foreground">
             {account.name}
             {account.isSavingsAccount && (
               <Badge variant="success" className="gap-1">
@@ -96,29 +93,26 @@ export function AccountCard({
               onClick={() => setEditing(true)}
               aria-label="Modifica saldo di partenza"
             >
-              <Pencil className="h-3.5 w-3.5" style={{ color: colors.text }} />
+              <Pencil className="h-3.5 w-3.5" />
             </Button>
           )}
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
         <div>
-          <p className="text-xs" style={{ color: colors.text, opacity: 0.8 }}>
-            Saldo corrente
-          </p>
           <p
-            className="font-mono text-2xl font-semibold tabular-nums"
+            className="text-[11px] font-semibold tracking-wider uppercase"
             style={{ color: colors.text }}
           >
+            Saldo corrente
+          </p>
+          <p className="font-mono text-2xl font-bold tracking-tight tabular-nums text-foreground">
             {currencyFormatter.format(account.currentBalance)}
           </p>
         </div>
 
         {editing ? (
-          <div
-            className="space-y-3 border-t pt-4"
-            style={{ borderColor: `${colors.bg}33` }}
-          >
+          <div className="space-y-3 border-t border-border pt-4">
             <div className="space-y-1.5">
               <Label htmlFor={`balance-${account.id}`}>Saldo di partenza</Label>
               <Input
@@ -160,7 +154,7 @@ export function AccountCard({
             </div>
           </div>
         ) : (
-          <p className="text-xs" style={{ color: colors.text, opacity: 0.8 }}>
+          <p className="text-xs text-muted-foreground">
             Saldo di partenza: {currencyFormatter.format(Number(account.openingBalance))}
             {account.openingBalanceDate ? ` al ${account.openingBalanceDate}` : ""}
           </p>

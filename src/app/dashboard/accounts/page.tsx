@@ -6,14 +6,6 @@ import {
   AccountCard,
   type AccountSummary,
 } from "@/components/finance/account-card";
-import type { CardTone } from "@/lib/finance/card-tones";
-
-const NON_SAVINGS_TONES: CardTone[] = ["ochre", "moss", "terracotta", "clay", "sand"];
-
-function toneForAccount(account: AccountSummary, nonSavingsIndex: number): CardTone {
-  if (account.isSavingsAccount) return "sage";
-  return NON_SAVINGS_TONES[nonSavingsIndex % NON_SAVINGS_TONES.length];
-}
 
 export default function AccountsPage() {
   const [accounts, setAccounts] = useState<AccountSummary[] | null>(null);
@@ -64,27 +56,18 @@ export default function AccountsPage() {
 
       {accounts && (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {(() => {
-            let nonSavingsIndex = 0;
-            return accounts.map((account) => {
-              const tone = toneForAccount(account, nonSavingsIndex);
-              if (!account.isSavingsAccount) nonSavingsIndex += 1;
-              return (
-                <AccountCard
-                  key={account.id}
-                  account={account}
-                  tone={tone}
-                  onUpdated={(updated) =>
-                    setAccounts((prev) =>
-                      prev
-                        ? prev.map((a) => (a.id === updated.id ? updated : a))
-                        : prev
-                    )
-                  }
-                />
-              );
-            });
-          })()}
+          {accounts.map((account) => (
+            <AccountCard
+              key={account.id}
+              account={account}
+              tone="sage"
+              onUpdated={(updated) =>
+                setAccounts((prev) =>
+                  prev ? prev.map((a) => (a.id === updated.id ? updated : a)) : prev
+                )
+              }
+            />
+          ))}
         </div>
       )}
     </div>

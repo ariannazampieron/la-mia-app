@@ -38,6 +38,8 @@
   --color-success: var(--success);
   --color-warning-foreground: var(--warning-foreground);
   --color-warning: var(--warning);
+  --color-navy-foreground: var(--navy-foreground);
+  --color-navy: var(--navy);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -51,48 +53,50 @@
 }
 
 /*
- * Finance Tracker — Soft-Tactile palette, light mode only.
- * See DESIGN.md at the project root for the full rationale.
+ * Finance Tracker — Technical-Utility palette (navy + teal), light mode only.
+ * See DESIGN.md at the project root for the full rationale (revision 2, 2026-10-25).
  * This app has no dark mode toggle by design — do not add a .dark block back.
  */
 :root {
   --radius: 0.625rem;
-  --background: #faf9f5;
-  --foreground: #2b2b27;
+  --background: #ffffff;
+  --foreground: #0f172a;
   --card: #ffffff;
-  --card-foreground: #2b2b27;
+  --card-foreground: #0f172a;
   --popover: #ffffff;
-  --popover-foreground: #2b2b27;
-  --primary: #7c9473;
-  --primary-foreground: #2b2b27;
-  --secondary: #f1efe9;
-  --secondary-foreground: #2b2b27;
-  --muted: #f1efe9;
-  --muted-foreground: #6b6b62;
-  --accent: #e8ede4;
-  --accent-foreground: #2b2b27;
-  --destructive: #b5493f;
+  --popover-foreground: #0f172a;
+  --primary: #14b8a6;
+  --primary-foreground: #ffffff;
+  --secondary: #f1f5f9;
+  --secondary-foreground: #0f172a;
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b;
+  --accent: #e6f7f5;
+  --accent-foreground: #0f766e;
+  --destructive: #dc2626;
   --destructive-foreground: #ffffff;
-  --success: #4f7a4a;
+  --success: #059669;
   --success-foreground: #ffffff;
-  --warning: #b8873b;
-  --warning-foreground: #2b2b27;
-  --border: #e8e6df;
-  --input: #e8e6df;
-  --ring: #7c9473;
-  --chart-1: #7c9473;
-  --chart-2: #4f7a4a;
-  --chart-3: #b8873b;
-  --chart-4: #b5493f;
-  --chart-5: #6b6b62;
-  --sidebar: #f4f2ec;
-  --sidebar-foreground: #2b2b27;
-  --sidebar-primary: #7c9473;
-  --sidebar-primary-foreground: #2b2b27;
-  --sidebar-accent: #e8ede4;
-  --sidebar-accent-foreground: #2b2b27;
-  --sidebar-border: #e8e6df;
-  --sidebar-ring: #7c9473;
+  --warning: #d97706;
+  --warning-foreground: #ffffff;
+  --navy: #1e2a52;
+  --navy-foreground: #ffffff;
+  --border: #e7eaf0;
+  --input: #e7eaf0;
+  --ring: #14b8a6;
+  --chart-1: #1e2a52;
+  --chart-2: #14b8a6;
+  --chart-3: #7c5cfc;
+  --chart-4: #d99a2b;
+  --chart-5: #e0574f;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #0f172a;
+  --sidebar-primary: #14b8a6;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #e6f7f5;
+  --sidebar-accent-foreground: #0f766e;
+  --sidebar-border: #e7eaf0;
+  --sidebar-ring: #14b8a6;
 }
 
 @layer base {

@@ -61,23 +61,24 @@ export function CasaSectionCard({
   }
 
   return (
-    <Card
-      style={{ backgroundColor: colors.bgSoft, borderColor: `${colors.bg}33` }}
-    >
+    <Card style={{ borderTopWidth: "4px", borderTopColor: colors.bg }}>
       <CardHeader>
-        <CardTitle className="text-sm font-semibold" style={{ color: colors.text }}>
+        <CardTitle
+          className="text-sm font-semibold tracking-wider uppercase"
+          style={{ color: colors.text }}
+        >
           {label}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <p className="font-mono text-2xl font-semibold tabular-nums" style={{ color: colors.text }}>
+        <p className="font-mono text-2xl font-bold tracking-tight tabular-nums text-foreground">
           {currencyFormatter.format(total)}
         </p>
 
-        <dl className="space-y-1.5 border-t pt-3 text-sm" style={{ borderColor: `${colors.bg}33` }}>
+        <dl className="space-y-1.5 border-t border-border pt-3 text-sm">
           {values.map((v) => (
             <div key={v.year} className="flex items-center justify-between gap-2">
-              <dt className="flex items-center gap-1.5" style={{ color: colors.text }}>
+              <dt className="flex items-center gap-1.5 text-muted-foreground">
                 {v.year}
                 {!v.isManual && (
                   <Badge variant="outline" className="h-4 px-1 text-[10px]">
@@ -105,14 +106,13 @@ export function CasaSectionCard({
                     {saving === v.year ? (
                       <Loader2 className="h-3.5 w-3.5 animate-spin" />
                     ) : (
-                      <Check className="h-3.5 w-3.5" style={{ color: colors.text }} />
+                      <Check className="h-3.5 w-3.5 text-success" />
                     )}
                   </button>
                 </div>
               ) : (
                 <button
-                  className="flex items-center gap-1.5 font-mono text-sm tabular-nums disabled:cursor-default"
-                  style={{ color: colors.text }}
+                  className="flex items-center gap-1.5 font-mono text-sm font-medium tabular-nums text-foreground disabled:cursor-default"
                   onClick={() => {
                     if (!v.editable) return;
                     setEditingYear(v.year);

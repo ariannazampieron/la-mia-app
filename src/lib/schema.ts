@@ -242,4 +242,26 @@ export const casaManualTotals = pgTable(
     unique("casa_manual_totals_unique_cell").on(t.userId, t.section, t.year),
   ]
 );
+
+export const budgetOpeningBalance = pgTable(
+  "budget_opening_balance",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    year: integer("year").notNull(),
+    month: integer("month").notNull(),
+    amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (t) => [
+    index("budget_opening_balance_user_idx").on(t.userId),
+    unique("budget_opening_balance_unique_cell").on(t.userId, t.year, t.month),
+  ]
+);
 // =============================================================================

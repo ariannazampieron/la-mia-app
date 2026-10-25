@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { Loader2, AlertCircle } from "lucide-react";
 import { CasaSectionCard } from "@/components/finance/casa-section-card";
 import type { CasaSectionKey } from "@/lib/finance/casa-sections";
-import type { CardTone } from "@/lib/finance/card-tones";
 
 interface CasaYearValue {
   year: number;
@@ -18,14 +17,6 @@ interface CasaSection {
   label: string;
   values: CasaYearValue[];
 }
-
-const SECTION_TONES: Record<CasaSectionKey, CardTone> = {
-  acquisto: "terracotta",
-  ristrutturazione: "clay",
-  arredamento: "sand",
-  accessori: "sage",
-  utenze_manutenzione: "moss",
-};
 
 export default function CasaPage() {
   const [sections, setSections] = useState<CasaSection[] | null>(null);
@@ -81,7 +72,7 @@ export default function CasaPage() {
               sectionKey={section.key}
               label={section.label}
               values={section.values}
-              tone={SECTION_TONES[section.key]}
+              tone="sage"
               onSaved={(year, amount) =>
                 setSections((prev) =>
                   prev

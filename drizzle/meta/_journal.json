@@ -22,6 +22,13 @@
       "when": 1792875280157,
       "tag": "0002_mighty_dracula",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1792950356548,
+      "tag": "0003_faulty_electro",
+      "breakpoints": true
     }
   ]
 }

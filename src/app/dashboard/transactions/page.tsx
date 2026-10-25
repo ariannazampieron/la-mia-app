@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Loader2, AlertCircle, Plus } from "lucide-react";
+import { Loader2, AlertCircle, Plus, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -29,11 +29,14 @@ interface CategoryOption {
 }
 
 const ALL = "__all__";
+const UNCATEGORIZED = "__uncategorized__";
 
 export default function TransactionsPage() {
   const [accounts, setAccounts] = useState<AccountOption[]>([]);
   const [categories, setCategories] = useState<CategoryOption[]>([]);
   const [transactions, setTransactions] = useState<TransactionRow[] | null>(null);
+  const [total, setTotal] = useState(0);
+  const [pageSize, setPageSize] = useState(50);
   const [error, setError] = useState<string | null>(null);
 
   const [accountFilter, setAccountFilter] = useState(ALL);
@@ -41,6 +44,7 @@ export default function TransactionsPage() {
   const [typeFilter, setTypeFilter] = useState(ALL);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [page, setPage] = useState(1);
 
   const [formOpen, setFormOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<TransactionRow | null>(null);
@@ -52,15 +56,23 @@ export default function TransactionsPage() {
     if (typeFilter !== ALL) params.set("type", typeFilter);
     if (dateFrom) params.set("dateFrom", dateFrom);
     if (dateTo) params.set("dateTo", dateTo);
+    params.set("page", String(page));
 
     try {
       const res = await fetch(`/api/transactions?${params.toString()}`);
       if (!res.ok) throw new Error("Impossibile caricare le transazioni");
       const body = await res.json();
       setTransactions(body.transactions);
+      setTotal(body.total);
+      setPageSize(body.pageSize);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Errore imprevisto");
     }
+  }, [accountFilter, categoryFilter, typeFilter, dateFrom, dateTo, page]);
+
+  // Any filter change should reset back to page 1.
+  useEffect(() => {
+    setPage(1);
   }, [accountFilter, categoryFilter, typeFilter, dateFrom, dateTo]);
 
   useEffect(() => {
@@ -162,6 +174,7 @@ export default function TransactionsPage() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value={ALL}>Tutte le categorie</SelectItem>
+            <SelectItem value={UNCATEGORIZED}>Da categorizzare</SelectItem>
             {relevantCategories.map((c) => (
               <SelectItem key={c.id} value={c.id}>
                 {c.name}
@@ -208,18 +221,51 @@ export default function TransactionsPage() {
       )}
 
       {transactions && (
-        <TransactionsTable
-          transactions={transactions}
-          categories={categories}
-          accounts={accounts}
-          onEdit={(tx) => {
-            setEditingTransaction(tx);
-            setFormOpen(true);
-          }}
-          onDeleted={(id) =>
-            setTransactions((prev) => prev?.filter((t) => t.id !== id) ?? prev)
-          }
-        />
+        <>
+          <TransactionsTable
+            transactions={transactions}
+            categories={categories}
+            accounts={accounts}
+            onEdit={(tx) => {
+              setEditingTransaction(tx);
+              setFormOpen(true);
+            }}
+            onDeleted={(id) =>
+              setTransactions((prev) => prev?.filter((t) => t.id !== id) ?? prev)
+            }
+          />
+
+          {total > 0 && (
+            <div className="flex items-center justify-between text-sm text-muted-foreground">
+              <p>
+                {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, total)} di {total}
+              </p>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Precedente
+                </Button>
+                <span className="px-1">
+                  Pagina {page} di {Math.max(1, Math.ceil(total / pageSize))}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage((p) => p + 1)}
+                  disabled={page * pageSize >= total}
+                >
+                  Successiva
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       <TransactionForm

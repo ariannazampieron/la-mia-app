@@ -1,86 +1,78 @@
 # Design Direction — Finance Tracker
 
 > Source of truth for the project's aesthetic. The `frontend-design` skill reads this on every UI task.
+>
+> **Revision 2** (2026-10-25): replaced the original Soft-Tactile direction after the user reviewed the live app and asked for a redesign, providing concrete references: three screenshots of "LOOP — Gestione Economica" (a financial-management dashboard she built for a client) and her own logo. This is now the binding direction — do not revert to the warm/sage Soft-Tactile language described in earlier history.
 
 ## Aesthetic direction
 
-**Soft-Tactile**
+**Technical-Utility**
 
-A personal finance ledger, not a SaaS dashboard — it should feel like opening a well-kept paper ledger on a warm desk, not logging into a bank's web portal. Cards have soft, tactile presence: a single hairline border, a very subtle shadow, warm off-white surfaces instead of stark white. Numbers are the hero — large, tabular, unmistakable — everything else (labels, chrome, nav) recedes. Reference points: Copilot Money's calm confidence with numbers, Mercury's restraint with color, but warmer and less corporate than either — closer to a well-designed personal notebook app.
+A precise, data-dense financial cockpit — closer to Mercury's or Ramp's finance dashboards than to a cozy personal ledger. White surfaces, bold black numerals, a deep navy anchor color, and a vivid teal accent that does the work blue usually does in SaaS products (focus rings, active states, progress). Structure is explicit and labeled: uppercase tracked-out micro-labels, pill-shaped segmented filters, gradient-banded section headers on financial tables. The sage-green brush of the user's own logo survives only as one supporting hue in the data-color palette, not as the app's primary identity — navy and teal carry that now.
 
 ## Reference apps
 
-- Copilot Money — how it makes large monetary figures the visual anchor of every screen, with color used sparingly and meaningfully (never decoratively)
-- Mercury (banking dashboard) — restrained use of a single accent color against neutral surfaces, generous breathing room around data
-- Notion — soft card tactility, hairline borders instead of heavy shadows, for the transaction list and settings areas
+- **LOOP — Gestione Economica** (user-provided screenshots, `~/Downloads/screenshot per app/`) — the primary and most literal reference. Match directly: the sidebar structure and active-item treatment, the stat-card with gradient top border, the pill-shaped year filter, the "Conto Economico" table with navy→teal gradient section-header bands and bold colored total rows (mint-green for revenue totals, coral for cost totals), the pale-mint table header tint, the small colored bullet dots used to color-code categories.
+- Mercury (banking dashboard) — restrained, confident use of a single bright accent against white/near-white surfaces.
 
 ## Typography
 
-**Heading**: Geist Sans, 600 weight — already loaded in the project (`--font-geist-sans`), no new font needed. Headings stay understated; they organize, they don't perform.
-**Body**: Geist Sans, 400 weight — same family as headings, differentiated by weight and size only, keeping the whole app feeling like one calm surface.
-**Mono**: Geist Mono (`--font-geist-mono`, already loaded) — used for ALL monetary values, account balances, and table figures. Tabular numerals are non-negotiable for a finance app; mono guarantees digit alignment in columns without extra CSS.
-**Pairing rationale**: one typeface family (Geist) used two ways (sans for words, mono for numbers) keeps the UI visually quiet — the only typographic "event" is a number switching to mono, which is exactly where attention should go.
+**Heading**: Geist Sans, 700 weight — already loaded in the project (`--font-geist-sans`), no new font needed; it's visually in the same family as the grotesque sans used in the reference screenshots. Page titles are bold, black, tight tracking (`tracking-tight`), noticeably larger than the old direction (`text-3xl`/`text-4xl` for page H1s).
+**Body**: Geist Sans, 400 weight.
+**Micro-labels**: Geist Sans, 600 weight, uppercase, `tracking-wider`, small (11-12px), gray-blue — used for card eyebrow labels ("COSTI TOTALI 2026"), table column headers, section eyebrows.
+**Mono**: Geist Mono (`--font-geist-mono`) — used for ALL monetary values and table figures, tabular numerals.
+**Pairing rationale**: bold black Geist Sans carries structure and hierarchy (titles, totals), uppercase tracked micro-labels carry wayfinding, Geist Mono carries every number — three distinct typographic registers doing three distinct jobs, matching the reference's clarity.
 
-**Scale**: default · heading-to-body ratio ~2.5x (home page indicator numbers go large, ~2.5rem–3rem, in mono)
-**Tracking**: default, except uppercase category badges which use `tracking-wide` at a small size
-**Tabular numerals**: required everywhere money appears — handled automatically by using Geist Mono for all figures
+**Scale**: bold and confident — page H1 `text-3xl font-bold tracking-tight`; stat-card big numbers `text-3xl` to `text-4xl` mono bold; micro-labels `text-[11px]` uppercase tracked.
+**Tabular numerals**: required everywhere money appears — Geist Mono handles this automatically.
 
 ## Color story
 
-**Mode**: light only — no dark mode toggle, no system-detection fallback. The app renders light at all times.
-**Accent**: `#7C9473` (muted sage green, drawn from the user's logo) — used for the single primary action per screen ("Importa estratto conto") and for active nav state
-**Off-black**: `#2B2B27` (warm near-black for text — never pure `#000000`)
-**Off-white**: `#FAF9F5` (warm paper-like background — never pure `#FFFFFF`)
-**Surfaces**: cards sit on pure `#FFFFFF` against the `#FAF9F5` page background, differentiated by a 1px `#E8E6DF` hairline border and a barely-there shadow (`0 1px 2px rgba(43,43,39,0.04)`) — no heavy elevation anywhere
+**Mode**: light only — no dark mode toggle. (The LOOP reference has a "Modalità scura" sidebar item because it's a multi-tenant SaaS product; this app does not need one — it's a single-user permanent light surface.)
+**Background**: `#FFFFFF` (pure white page background — this direction is crisp, not warm-paper like the previous one)
+**Foreground**: `#0F172A` (near-black navy-tinted text, not pure `#000000`)
+**Primary / anchor**: `#1E2A52` (deep navy — section header bands, bold emphasis, one gradient endpoint)
+**Accent / interactive**: `#14B8A6` (vivid teal — the other gradient endpoint, focus rings, active nav pill, primary button, progress bars, "good" status)
+**Surfaces**: cards are `#FFFFFF` with a `1px #E7EAF0` border and a soft shadow (`0 1px 3px rgba(15,23,42,0.06)`) — slightly more lift than the previous hairline-only direction, matching the reference's card elevation
 **Semantic colors**:
-- Success / under-budget / income-positive: `#4F7A4A` (deeper, more saturated green than the accent, used ONLY for budget-vs-actual states — never for decoration)
-- Destructive / over-budget: `#B5493F` (muted brick red, not a loud alarm red — this app should never feel alarming)
-- Warning (e.g. "unrecognized category, needs review"): `#B8873B` (muted amber)
+- Success / under-budget / revenue total: `#059669` (emerald green — used for "TOTALE RICAVI" rows and under-budget variance)
+- Destructive / over-budget / cost total: `#DC2626` (coral-red — used for "TOTALE COSTI" rows and over-budget variance)
+- Warning (uncategorized, needs review): `#D97706` (amber)
 
-These map to the variables in `src/app/globals.css` (`@theme` block) — update `--primary`, `--background`, `--foreground`, `--card`, `--border`, `--destructive`, plus two new tokens `--success` and `--warning` to match this story.
+These map to `src/app/globals.css` (`@theme` block): `--background`, `--foreground`, `--primary` (navy), `--accent`/`--ring` (teal), `--card`, `--border`, `--success`, `--destructive`, `--warning`.
 
-**Decorative card tones** (`src/lib/finance/card-tones.ts`): a separate, non-semantic palette of 6 warm tones (sage, ochre, moss, terracotta, clay, sand) used to give the Home indicators, account balance cards, and the Casa section cards a more energetic, colored-background feel — added per explicit user request after the initial calm/neutral direction felt too flat for these specific stat cards. These carry no success/warning/destructive meaning and must never be used in the Budget/Rendiconto grid, where color means over/under budget.
+**Decorative palette** (`src/lib/finance/card-tones.ts`): a small palette of 6 tones (`navy`, `teal`, `purple`, `gold`, `coral`, `sage`) exists in code (lifted from the reference screenshot's bullet-dot palette) but **all stat cards use `sage` uniformly** (`#7C9473` — the one surviving thread back to the logo's watercolor green) per explicit user request ("i riquadri siano tutti verdi, non di vari colori") — do not reintroduce per-card color rotation on Home/Conti/Casa cards. The other 5 tones remain available in the palette file for future category color-dots or similar uses, just not for stat-card backgrounds. These carry no success/warning/destructive meaning and must never be used for Budget/Rendiconto variance coloring, where color means over/under budget.
 
 ## Motion personality
 
-**Character**: Deliberate restraint. Most things don't animate. The few things that do — a row confirming a save, a duplicate-transaction dialog appearing — move decisively and briefly, never bouncy.
+**Character**: Deliberate, confident, slightly snappier than the old direction — this is a utility tool meant to be used often, not lingered over.
 
-**Named easings** (defined in `globals.css`):
-- `ease-snap` — button presses, checkbox/toggle feedback, the "transaction saved" micro-confirmation
-- `ease-settle` — dialogs and sheets appearing (import preview, duplicate confirmation, manual transaction form)
-- `ease-drift` — not used on primary interactions; reserved for the empty-state illustration's subtle idle state only, if any
-
-**Stagger**: transaction rows appearing after an import stagger by 30ms, capped at the first 10 rows
-**Reduced motion**: respected globally via `@media (prefers-reduced-motion)`
+**Named easings** (defined in `globals.css`): `ease-snap`, `ease-settle`, `ease-drift` — unchanged definitions, same usage rules as before (snap = button/toggle feedback, settle = dialogs/sheets, drift = ambient only, never primary interactions).
+**Reduced motion**: respected globally via `@media (prefers-reduced-motion)`.
 
 ## Layout personality
 
-**Composition rule**: calm and centered — this is a data-entry and review tool, not an editorial surface, so content is left-aligned under a fixed sidebar rather than asymmetric
-**Density**: balanced (not dense like Linear, not oversized like a marketing page) — the user explicitly asked for "not too much information" at once
-**Default page max-width**: `max-w-6xl`, with the transactions table allowed to use the full available width inside that constraint
-**Spacing scale**: default-to-generous — cards get `p-6`, sections are separated by `space-y-8`
-**Whitespace philosophy**: generous around the three home-page indicators (they should feel like the calm, confident headline of the page); tighter and more efficient inside the transactions table where density of information matters more
+**Composition rule**: structured and labeled, not minimal — every section gets an eyebrow label, every number gets a caption. This is a dashboard, not an editorial page.
+**Density**: denser than the previous direction, closer to the LOOP reference — tables in particular (Budget/Rendiconto, Transazioni) should read as professional financial statements.
+**Default page max-width**: `max-w-6xl` for standard pages; the restructured Budget/Rendiconto table may use the full sidebar-adjacent width since it has many month columns.
+**Spacing scale**: default — not as generous/airy as the old Soft-Tactile direction; cards `p-6`, page sections `space-y-6` to `space-y-8`.
 
 ## Tone of voice
 
-Calm, precise, first-person-singular ("il tuo fondo tasse", not "your tax fund" in a generic SaaS voice). No encouragement copy, no gamification, no exclamation points. This is a private ledger, not a growth app.
-- "Nessuna transazione da categorizzare" ✓
-- "Ottimo lavoro! Hai risparmiato questo mese! 🎉" ✗ (wrong register entirely — no emoji, no cheerleading)
+Calm and precise, first-person-singular. No gamification. Unchanged from the previous revision.
 
 ## Anti-patterns for this app
 
 - No emoji anywhere in the UI
-- No card-grid dashboard with icon tiles — the home page is three large numeric indicators, not a grid of stat cards with icons
-- No blue anywhere — this is a sage-green-only accent system
-- No dark mode toggle in settings — light mode is a permanent product decision, not a user preference
-- No donut/pie charts for budget — use the table with green/red highlighting the user explicitly asked for, not decorative data-viz
+- No warm/beige "paper ledger" surfaces anymore — background is crisp white, not `#FAF9F5`
+- No dark mode toggle
+- Reserve pure navy/teal gradients for the things the reference uses them for (section header bands, stat-card top borders) — don't scatter gradients everywhere
+- Donut/pie charts still avoided for Budget — the table + colored totals/variance is the visualization, per the reference
 
 ## Component customizations required
 
-shadcn primitives ship neutral. The following must have an aesthetic-aligned variant before they're considered done:
-
-- **Button**: primary variant uses the sage accent (`#7C9473`) with `rounded-md` (not pill, not sharp) and no shadow; secondary/ghost variants are text-only with a subtle background on hover
-- **Card**: single hairline border (`#E8E6DF`), barely-there shadow, `rounded-lg`, white fill against the warm off-white page background
-- **Table**: row figures right-aligned in Geist Mono; category shown as a small `rounded-full` badge, not plain text; hover state is a very subtle background tint, no row shadow
-- **Badge**: used for category tags and budget status ("Sopra budget" / "Sotto budget") — solid soft-fill background in the semantic color at low opacity, text in the full-strength semantic color
-- **Dialog**: used for the duplicate-transaction confirmation and manual transaction form — `ease-settle` entrance, centered, `max-w-md`
+- **Button**: primary variant uses the teal accent (`#14B8A6`) with white text, `rounded-md`; secondary/outline follow the reference's pill-filter look where used for segmented controls (year selector): `rounded-full`, selected = pale teal fill + teal border + teal text, unselected = white + gray border
+- **Card**: white fill, `1px #E7EAF0` border, soft shadow, `rounded-xl`; stat cards get a 3px gradient top border (navy → teal) as an alternative/addition to the flat colored-tint treatment already in use
+- **Table**: header row gets a pale mint tint (`color-mix` of teal at ~8%); section-header rows (used in the restructured Budget/Rendiconto) are solid navy→teal gradient bars with bold white uppercase text; bold colored total rows (emerald for revenue, coral for costs) with a matching-color top border accent on that row
+- **Badge**: category tags and status pills — soft-fill background in the semantic/categorical color at low opacity, text in the full-strength color, `rounded-full`
+- **Sidebar**: logo mark (`public/logo.png`) top-left next to the app name; active nav item gets a pale teal pill background with teal icon/text; a divider before secondary items; user info pinned at the very bottom — this is now explicitly modeled on the LOOP reference's sidebar, not a from-scratch design

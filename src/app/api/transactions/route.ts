@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { transactions, financeAccounts } from "@/lib/schema";
-import { and, desc, eq, gte, lte, count } from "drizzle-orm";
+import { and, desc, eq, gte, lte, count, isNull } from "drizzle-orm";
 import {
   applyRateLimit,
   requireApiAuth,
@@ -30,7 +30,8 @@ export async function GET(req: Request) {
 
   const filters = [eq(transactions.userId, session.user.id)];
   if (accountId) filters.push(eq(transactions.accountId, accountId));
-  if (categoryId) filters.push(eq(transactions.categoryId, categoryId));
+  if (categoryId === "__uncategorized__") filters.push(isNull(transactions.categoryId));
+  else if (categoryId) filters.push(eq(transactions.categoryId, categoryId));
   if (type === "income" || type === "expense") filters.push(eq(transactions.type, type));
   if (dateFrom) filters.push(gte(transactions.date, dateFrom));
   if (dateTo) filters.push(lte(transactions.date, dateTo));

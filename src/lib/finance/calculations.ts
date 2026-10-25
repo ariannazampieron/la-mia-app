@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { financeAccounts, transactions, categories } from "@/lib/schema";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, inArray, lt, sql } from "drizzle-orm";
 
 export const TAX_RATE = 0.23;
 
@@ -99,6 +99,42 @@ export async function getRisparmio(
     getFondoTasse(userId, year),
   ]);
   return balance - fondoTasse;
+}
+
+/**
+ * Real liquidity (non-savings accounts only) as of a given cutoff date, EXCLUSIVE —
+ * opening balances plus every transaction strictly before `cutoffDate` (yyyy-mm-dd).
+ * Used by the Rendiconto cash-flow rows to show the actual liquidity at the start of
+ * each month, computed purely from real data (no manual entry needed, unlike the
+ * Budget tab's projected balance which has no transactions to draw from).
+ */
+export async function getLiquidityAsOf(
+  userId: string,
+  cutoffDate: string
+): Promise<number> {
+  const nonSavingsAccounts = await db
+    .select({ id: financeAccounts.id, openingBalance: financeAccounts.openingBalance })
+    .from(financeAccounts)
+    .where(
+      and(eq(financeAccounts.userId, userId), eq(financeAccounts.isSavingsAccount, false))
+    );
+
+  if (nonSavingsAccounts.length === 0) return 0;
+
+  const accountIds = nonSavingsAccounts.map((a) => a.id);
+  const openingTotal = nonSavingsAccounts.reduce(
+    (sum, a) => sum + Number(a.openingBalance),
+    0
+  );
+
+  const [row] = await db
+    .select({
+      signedTotal: sql<string>`coalesce(sum(case when ${transactions.type} = 'income' then ${transactions.amount} else -${transactions.amount} end), 0)`,
+    })
+    .from(transactions)
+    .where(and(inArray(transactions.accountId, accountIds), lt(transactions.date, cutoffDate)));
+
+  return openingTotal + Number(row?.signedTotal ?? 0);
 }
 
 /** Liquidità disponibile = somma dei saldi di tutti i conti tranne quello di risparmio. */
