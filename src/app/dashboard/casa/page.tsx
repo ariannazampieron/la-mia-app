@@ -2,7 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { Loader2, AlertCircle } from "lucide-react";
-import { CasaSectionCard } from "@/components/finance/casa-section-card";
+import {
+  CasaSectionCard,
+  CasaValueCard,
+} from "@/components/finance/casa-section-card";
 import type { CasaSectionKey } from "@/lib/finance/casa-sections";
 
 interface CasaYearValue {
@@ -11,6 +14,13 @@ interface CasaYearValue {
   isManual: boolean;
   editable: boolean;
 }
+
+// Sections that add up to the value of the house (running costs excluded).
+const VALUE_SECTIONS: CasaSectionKey[] = [
+  "acquisto",
+  "ristrutturazione",
+  "arredamento",
+];
 
 interface CasaSection {
   key: CasaSectionKey;
@@ -31,7 +41,8 @@ export default function CasaPage() {
         const body = await res.json();
         if (!cancelled) setSections(body.sections);
       } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : "Errore imprevisto");
+        if (!cancelled)
+          setError(err instanceof Error ? err.message : "Errore imprevisto");
       }
     }
     load();
@@ -44,22 +55,22 @@ export default function CasaPage() {
     <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Casa</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Totali per anno delle spese legate alla casa. Il 2025 (e qualunque anno senza
-          transazioni collegate) si compila a mano; dal 2026 i totali si aggiornano in
-          automatico dalle transazioni importate.
+        <p className="text-muted-foreground mt-1 text-sm">
+          Totali per anno delle spese legate alla casa. Il 2025 (e qualunque
+          anno senza transazioni collegate) si compila a mano; dal 2026 i totali
+          si aggiornano in automatico dalle transazioni importate.
         </p>
       </div>
 
       {error && (
-        <div className="flex items-center gap-2 rounded-lg border border-destructive/20 bg-destructive/5 p-4 text-sm text-destructive">
+        <div className="border-destructive/20 bg-destructive/5 text-destructive flex items-center gap-2 rounded-lg border p-4 text-sm">
           <AlertCircle className="h-4 w-4 shrink-0" />
           {error}
         </div>
       )}
 
       {!sections && !error && (
-        <div className="flex items-center justify-center py-16 text-muted-foreground">
+        <div className="text-muted-foreground flex items-center justify-center py-16">
           <Loader2 className="h-5 w-5 animate-spin" />
         </div>
       )}
@@ -81,7 +92,9 @@ export default function CasaPage() {
                           ? {
                               ...s,
                               values: s.values.map((v) =>
-                                v.year === year ? { ...v, amount, isManual: true } : v
+                                v.year === year
+                                  ? { ...v, amount, isManual: true }
+                                  : v
                               ),
                             }
                           : s
@@ -91,6 +104,15 @@ export default function CasaPage() {
               }
             />
           ))}
+          <CasaValueCard
+            label="Valore casa"
+            parts={sections
+              .filter((s) => VALUE_SECTIONS.includes(s.key))
+              .map((s) => ({
+                label: s.label,
+                amount: s.values.reduce((sum, v) => sum + v.amount, 0),
+              }))}
+          />
         </div>
       )}
     </div>
