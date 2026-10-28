@@ -1,7 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Loader2, AlertCircle, Plus, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  Loader2,
+  AlertCircle,
+  Plus,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -12,6 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ImportDialog } from "@/components/finance/import-dialog";
+import { DeleteAllTransactionsButton } from "@/components/finance/delete-all-transactions-button";
 import { TransactionForm } from "@/components/finance/transaction-form";
 import {
   TransactionsTable,
@@ -34,7 +41,9 @@ const UNCATEGORIZED = "__uncategorized__";
 export default function TransactionsPage() {
   const [accounts, setAccounts] = useState<AccountOption[]>([]);
   const [categories, setCategories] = useState<CategoryOption[]>([]);
-  const [transactions, setTransactions] = useState<TransactionRow[] | null>(null);
+  const [transactions, setTransactions] = useState<TransactionRow[] | null>(
+    null
+  );
   const [total, setTotal] = useState(0);
   const [pageSize, setPageSize] = useState(50);
   const [error, setError] = useState<string | null>(null);
@@ -47,7 +56,8 @@ export default function TransactionsPage() {
   const [page, setPage] = useState(1);
 
   const [formOpen, setFormOpen] = useState(false);
-  const [editingTransaction, setEditingTransaction] = useState<TransactionRow | null>(null);
+  const [editingTransaction, setEditingTransaction] =
+    useState<TransactionRow | null>(null);
 
   const loadTransactions = useCallback(async () => {
     const params = new URLSearchParams();
@@ -101,18 +111,21 @@ export default function TransactionsPage() {
   }, [loadTransactions]);
 
   const relevantCategories =
-    typeFilter === ALL ? categories : categories.filter((c) => c.type === typeFilter);
+    typeFilter === ALL
+      ? categories
+      : categories.filter((c) => c.type === typeFilter);
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Transazioni</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <p className="text-muted-foreground mt-1 text-sm">
             Importa i tuoi estratti conto o aggiungi una transazione manuale.
           </p>
         </div>
         <div className="flex gap-2">
+          <DeleteAllTransactionsButton onDeleted={loadTransactions} />
           <Button
             variant="outline"
             onClick={() => {
@@ -130,7 +143,7 @@ export default function TransactionsPage() {
       </div>
 
       {error && (
-        <div className="flex items-center gap-2 rounded-lg border border-destructive/20 bg-destructive/5 p-4 text-sm text-destructive">
+        <div className="border-destructive/20 bg-destructive/5 text-destructive flex items-center gap-2 rounded-lg border p-4 text-sm">
           <AlertCircle className="h-4 w-4 shrink-0" />
           {error}
         </div>
@@ -191,7 +204,7 @@ export default function TransactionsPage() {
             className="w-36"
             aria-label="Data inizio"
           />
-          <span className="text-sm text-muted-foreground">–</span>
+          <span className="text-muted-foreground text-sm">–</span>
           <Input
             type="date"
             value={dateTo}
@@ -215,7 +228,7 @@ export default function TransactionsPage() {
       </div>
 
       {!transactions && !error && (
-        <div className="flex items-center justify-center py-16 text-muted-foreground">
+        <div className="text-muted-foreground flex items-center justify-center py-16">
           <Loader2 className="h-5 w-5 animate-spin" />
         </div>
       )}
@@ -231,14 +244,17 @@ export default function TransactionsPage() {
               setFormOpen(true);
             }}
             onDeleted={(id) =>
-              setTransactions((prev) => prev?.filter((t) => t.id !== id) ?? prev)
+              setTransactions(
+                (prev) => prev?.filter((t) => t.id !== id) ?? prev
+              )
             }
           />
 
           {total > 0 && (
-            <div className="flex items-center justify-between text-sm text-muted-foreground">
+            <div className="text-muted-foreground flex items-center justify-between text-sm">
               <p>
-                {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, total)} di {total}
+                {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, total)}{" "}
+                di {total}
               </p>
               <div className="flex items-center gap-2">
                 <Button

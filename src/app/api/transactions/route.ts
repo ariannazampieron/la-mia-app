@@ -30,9 +30,11 @@ export async function GET(req: Request) {
 
   const filters = [eq(transactions.userId, session.user.id)];
   if (accountId) filters.push(eq(transactions.accountId, accountId));
-  if (categoryId === "__uncategorized__") filters.push(isNull(transactions.categoryId));
+  if (categoryId === "__uncategorized__")
+    filters.push(isNull(transactions.categoryId));
   else if (categoryId) filters.push(eq(transactions.categoryId, categoryId));
-  if (type === "income" || type === "expense") filters.push(eq(transactions.type, type));
+  if (type === "income" || type === "expense")
+    filters.push(eq(transactions.type, type));
   if (dateFrom) filters.push(gte(transactions.date, dateFrom));
   if (dateTo) filters.push(lte(transactions.date, dateTo));
 
@@ -59,7 +61,12 @@ export async function GET(req: Request) {
     db.select({ total: count() }).from(transactions).where(where),
   ]);
 
-  return apiResponse({ transactions: rows, total, page, pageSize: MAX_PAGE_SIZE });
+  return apiResponse({
+    transactions: rows,
+    total,
+    page,
+    pageSize: MAX_PAGE_SIZE,
+  });
 }
 
 const createTransactionSchema = z.object({
@@ -79,7 +86,10 @@ export async function POST(req: Request) {
   const { session, error } = await requireApiAuth();
   if (error) return error;
 
-  const { data, error: parseErr } = await parseBody(req, createTransactionSchema);
+  const { data, error: parseErr } = await parseBody(
+    req,
+    createTransactionSchema
+  );
   if (parseErr) return parseErr;
 
   const [account] = await db
@@ -110,4 +120,28 @@ export async function POST(req: Request) {
     .returning({ id: transactions.id });
 
   return apiResponse({ id: created.id }, 201);
+}
+
+const deleteAllSchema = z.object({ confirm: z.literal(true) });
+
+/** Deletes every transaction of the user (used to restart imports from scratch). */
+export async function DELETE(req: Request) {
+  const limited = await applyRateLimit(
+    "transactions-delete-all",
+    RATE_LIMITS.api
+  );
+  if (limited) return limited;
+
+  const { session, error } = await requireApiAuth();
+  if (error) return error;
+
+  const { error: parseErr } = await parseBody(req, deleteAllSchema);
+  if (parseErr) return parseErr;
+
+  const deleted = await db
+    .delete(transactions)
+    .where(eq(transactions.userId, session.user.id))
+    .returning({ id: transactions.id });
+
+  return apiResponse({ deleted: deleted.length });
 }
