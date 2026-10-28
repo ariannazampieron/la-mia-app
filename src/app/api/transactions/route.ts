@@ -121,27 +121,3 @@ export async function POST(req: Request) {
 
   return apiResponse({ id: created.id }, 201);
 }
-
-const deleteAllSchema = z.object({ confirm: z.literal(true) });
-
-/** Deletes every transaction of the user (used to restart imports from scratch). */
-export async function DELETE(req: Request) {
-  const limited = await applyRateLimit(
-    "transactions-delete-all",
-    RATE_LIMITS.api
-  );
-  if (limited) return limited;
-
-  const { session, error } = await requireApiAuth();
-  if (error) return error;
-
-  const { error: parseErr } = await parseBody(req, deleteAllSchema);
-  if (parseErr) return parseErr;
-
-  const deleted = await db
-    .delete(transactions)
-    .where(eq(transactions.userId, session.user.id))
-    .returning({ id: transactions.id });
-
-  return apiResponse({ deleted: deleted.length });
-}

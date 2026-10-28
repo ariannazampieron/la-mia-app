@@ -18,7 +18,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ImportDialog } from "@/components/finance/import-dialog";
-import { DeleteAllTransactionsButton } from "@/components/finance/delete-all-transactions-button";
 import { TransactionForm } from "@/components/finance/transaction-form";
 import {
   TransactionsTable,
@@ -125,7 +124,6 @@ export default function TransactionsPage() {
           </p>
         </div>
         <div className="flex gap-2">
-          <DeleteAllTransactionsButton onDeleted={loadTransactions} />
           <Button
             variant="outline"
             onClick={() => {

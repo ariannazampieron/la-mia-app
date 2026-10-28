@@ -22,7 +22,6 @@ Nessuna modifica di colonne — sostituita solo la categoria seed `ACQUISTI CASA
 - `GET /api/categories` — lista categorie fisse dell'utente
 - `GET /api/transactions` — lista transazioni filtrata (conto/categoria/tipo/periodo) e paginata
 - `POST /api/transactions` — crea transazione manuale
-- `DELETE /api/transactions` — elimina tutte le transazioni dell'utente (body `{ confirm: true }`), pulsante "Cancella tutte" con conferma nella pagina Transazioni, per ripartire da zero con gli import
 - `PATCH /api/transactions/[id]` — modifica transazione
 - `DELETE /api/transactions/[id]` — elimina transazione
 - `POST /api/transactions/import/preview` — carica e valida un file CSV/XLSX, rileva duplicati e suggerisce categorie (senza inserire nulla)
