@@ -95,12 +95,17 @@ export function ContoEconomicoTable({
   const decemberClosing = balanceByMonth.get(12)?.closing ?? 0;
   const januaryOpening = balanceByMonth.get(1)?.opening ?? 0;
 
-  // Budget averages over the full year; rendiconto over the months that actually have data.
+  // Budget averages over the full year; rendiconto from January up to the last month
+  // with any data, so months where a category had no spending still count as zero.
   const monthsForAverage =
     mode === "budget"
       ? 12
-      : balances.filter((b) => b.revenueTotal !== 0 || b.costTotal !== 0)
-          .length;
+      : Math.max(
+          0,
+          ...balances
+            .filter((b) => b.revenueTotal !== 0 || b.costTotal !== 0)
+            .map((b) => b.month)
+        );
   const showBudget = mode === "rendiconto";
   const summaryColumns = showBudget ? 4 : 2;
   const plannedYear = (field: "revenueTotal" | "costTotal" | "cashFlow") =>
