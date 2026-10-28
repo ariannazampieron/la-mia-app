@@ -28,6 +28,7 @@ Nessuna modifica di colonne — sostituita solo la categoria seed `ACQUISTI CASA
 - `POST /api/transactions/import/confirm` — inserisce le transazioni approvate dall'utente
 - `GET /api/budget?year=` — budget entries + saldo di apertura/chiusura, ricavi/costi/cash flow pianificati per ciascuno dei 12 mesi (saldo proiettato a cascata da `budget_opening_balance` + `budget_entries` di tutti gli anni fino a quello richiesto)
 - `PUT /api/budget` — upsert di una singola cella categoria×mese
+- `POST /api/budget/import` — upsert massivo delle celle di un anno (import da Excel: colonna A = voce, colonne B–M = gen–dic, prima riga opzionale con i mesi da cui si ricava l'anno). Le celle vuote del file non vengono toccate.
 - `PUT /api/budget/opening-balance` — upsert del saldo di apertura manuale (solo tab Budget) per un mese
 - `GET /api/budget/actuals?year=` — consuntivo reale per categoria×mese + saldo di apertura/chiusura reale (da `getLiquidityAsOf`), ricavi/costi/cash flow reali per ciascuno dei 12 mesi
 - `GET /api/dashboard/summary` — i 3 indicatori + breakdown (per usi client-side futuri; la Home li legge server-side direttamente)
@@ -43,7 +44,8 @@ Nessuna modifica di colonne — sostituita solo la categoria seed `ACQUISTI CASA
 - `src/lib/finance/categorize.ts` — categorizzazione automatica (match storico + fallback OpenRouter)
 - `src/lib/finance/casa-sections.ts` — mappatura sezione→categorie per la pagina Casa, costante `AUTO_TRACKING_START_YEAR` (2026) che determina da quale anno i totali diventano automatici
 - `src/lib/finance/card-tones.ts` — palette decorativa (navy/teal/purple/gold/coral/sage, presa dai bullet-dot dell'app di riferimento) usata per gli sfondi/bordi colorati di Home/Conti/Casa
-- `src/components/finance/conto-economico-table.tsx` — tabella unificata Budget/Rendiconto in stile conto economico (sostituisce i vecchi `budget-grid.tsx`/`rendiconto-grid.tsx`): righe saldo conto corrente, sezione Entrate + totale, sezione Costi + totale, cash flow, liquidità fine mese
+- `src/components/finance/conto-economico-table.tsx` — tabella unificata Budget/Rendiconto in stile conto economico (sostituisce i vecchi `budget-grid.tsx`/`rendiconto-grid.tsx`): righe saldo conto corrente, sezione Entrate + totale, sezione Costi + totale, cash flow, liquidità fine mese. Ogni riga termina con Totale e Media mensile (Budget: totale/12; Rendiconto: totale/mesi con almeno una transazione categorizzata); nel Rendiconto anche Budget anno e % budget raggiunta (rossa se una spesa supera il budget, verde se un ricavo lo raggiunge)
+- `src/components/finance/budget-import-dialog.tsx` — dialog "Importa da Excel" del tab Budget: legge il file nel browser, abbina le voci alle categorie per nome (poi per la parte prima di "/", es. PREVIDENZA/POLIZZE → PREVIDENZA), mostra l'anteprima con abbinamento modificabile
 - `src/components/finance/` — sidebar-nav, account-card, import-dialog, transaction-form, transactions-table, conto-economico-table, indicator-card, casa-section-card
 - `src/app/dashboard/` — home (indicatori), `accounts/`, `transactions/`, `budget/`, `casa/`
 - `src/components/auth/auth-form.tsx` — login Email OTP (sostituisce il flusso email+password del boilerplate)

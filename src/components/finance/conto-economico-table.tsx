@@ -48,6 +48,11 @@ const currencyFormatter = new Intl.NumberFormat("it-IT", {
   maximumFractionDigits: 0,
 });
 
+const percentFormatter = new Intl.NumberFormat("it-IT", {
+  style: "percent",
+  maximumFractionDigits: 0,
+});
+
 function varianceStatus(
   type: "income" | "expense",
   planned: number,
@@ -64,6 +69,7 @@ export function ContoEconomicoTable({
   amounts,
   compareAmounts,
   balances,
+  compareBalances,
   onAmountChange,
   onOpeningBalanceChange,
 }: {
@@ -74,6 +80,8 @@ export function ContoEconomicoTable({
   /** rendiconto only: the planned amount per cell, used to color actual vs plan */
   compareAmounts?: Map<string, number>;
   balances: MonthBalance[];
+  /** rendiconto only: the planned monthly balances, used for the yearly budget/progress columns */
+  compareBalances?: MonthBalance[];
   onAmountChange?: (categoryId: string, month: number, value: number) => void;
   onOpeningBalanceChange?: (month: number, value: number) => void;
 }) {
@@ -87,30 +95,62 @@ export function ContoEconomicoTable({
   const decemberClosing = balanceByMonth.get(12)?.closing ?? 0;
   const januaryOpening = balanceByMonth.get(1)?.opening ?? 0;
 
+  // Budget averages over the full year; rendiconto over the months that actually have data.
+  const monthsForAverage =
+    mode === "budget"
+      ? 12
+      : balances.filter((b) => b.revenueTotal !== 0 || b.costTotal !== 0)
+          .length;
+  const showBudget = mode === "rendiconto";
+  const summaryColumns = showBudget ? 4 : 2;
+  const plannedYear = (field: "revenueTotal" | "costTotal" | "cashFlow") =>
+    (compareBalances ?? []).reduce((sum, b) => sum + b[field], 0);
+
   return (
-    <div className="overflow-x-auto rounded-xl border border-border">
+    <div className="border-border overflow-x-auto rounded-xl border">
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead className="sticky left-0 z-10 min-w-48 bg-accent/60">—</TableHead>
+            <TableHead className="bg-accent/60 sticky left-0 z-10 min-w-48">
+              —
+            </TableHead>
             {MONTH_LABELS.map((m) => (
               <TableHead key={m} className="min-w-24 text-right">
                 {m}
               </TableHead>
             ))}
             <TableHead className="min-w-28 text-right">Totale</TableHead>
+            <TableHead className="min-w-28 text-right">
+              Media mensile
+              <span className="text-muted-foreground block text-[10px] font-normal">
+                {mode === "budget"
+                  ? "su 12 mesi"
+                  : `su ${monthsForAverage} mesi`}
+              </span>
+            </TableHead>
+            {showBudget && (
+              <>
+                <TableHead className="min-w-28 text-right">
+                  Budget anno
+                </TableHead>
+                <TableHead className="min-w-20 text-right">% budget</TableHead>
+              </>
+            )}
           </TableRow>
         </TableHeader>
         <TableBody>
           <BalanceRow
             label="Saldo conto corrente"
             totalValue={januaryOpening}
-            values={MONTH_LABELS.map((_, i) => balanceByMonth.get(i + 1)?.opening ?? 0)}
+            values={MONTH_LABELS.map(
+              (_, i) => balanceByMonth.get(i + 1)?.opening ?? 0
+            )}
             editable={mode === "budget"}
             onChange={onOpeningBalanceChange}
+            extraColumns={summaryColumns - 1}
           />
 
-          <SectionBand label="Entrate" />
+          <SectionBand label="Entrate" colSpan={14 + summaryColumns} />
           {incomeCategories.map((category) => (
             <CategoryRow
               key={category.id}
@@ -118,6 +158,7 @@ export function ContoEconomicoTable({
               amounts={amounts}
               compareAmounts={compareAmounts}
               mode={mode}
+              monthsForAverage={monthsForAverage}
               onAmountChange={onAmountChange}
             />
           ))}
@@ -125,10 +166,20 @@ export function ContoEconomicoTable({
             label="Totale ricavi"
             tone="success"
             totalValue={yearRevenueTotal}
-            values={MONTH_LABELS.map((_, i) => balanceByMonth.get(i + 1)?.revenueTotal ?? 0)}
+            summary={{
+              monthsForAverage,
+              type: "income",
+              plannedTotal: showBudget
+                ? plannedYear("revenueTotal")
+                : undefined,
+              showBudget,
+            }}
+            values={MONTH_LABELS.map(
+              (_, i) => balanceByMonth.get(i + 1)?.revenueTotal ?? 0
+            )}
           />
 
-          <SectionBand label="Costi" />
+          <SectionBand label="Costi" colSpan={14 + summaryColumns} />
           {expenseCategories.map((category) => (
             <CategoryRow
               key={category.id}
@@ -136,6 +187,7 @@ export function ContoEconomicoTable({
               amounts={amounts}
               compareAmounts={compareAmounts}
               mode={mode}
+              monthsForAverage={monthsForAverage}
               onAmountChange={onAmountChange}
             />
           ))}
@@ -143,20 +195,39 @@ export function ContoEconomicoTable({
             label="Totale costi"
             tone="destructive"
             totalValue={yearCostTotal}
-            values={MONTH_LABELS.map((_, i) => balanceByMonth.get(i + 1)?.costTotal ?? 0)}
+            summary={{
+              monthsForAverage,
+              type: "expense",
+              plannedTotal: showBudget ? plannedYear("costTotal") : undefined,
+              showBudget,
+            }}
+            values={MONTH_LABELS.map(
+              (_, i) => balanceByMonth.get(i + 1)?.costTotal ?? 0
+            )}
           />
 
           <TotalRow
             label="Cash flow (entrate - uscite)"
             tone="neutral"
             totalValue={yearCashFlow}
-            values={MONTH_LABELS.map((_, i) => balanceByMonth.get(i + 1)?.cashFlow ?? 0)}
+            summary={{
+              monthsForAverage,
+              showBudget,
+              plannedTotal: showBudget ? plannedYear("cashFlow") : undefined,
+              hideProgress: true,
+            }}
+            values={MONTH_LABELS.map(
+              (_, i) => balanceByMonth.get(i + 1)?.cashFlow ?? 0
+            )}
           />
           <BalanceRow
             label="Liquidità disponibile fine mese"
             totalValue={decemberClosing}
-            values={MONTH_LABELS.map((_, i) => balanceByMonth.get(i + 1)?.closing ?? 0)}
+            values={MONTH_LABELS.map(
+              (_, i) => balanceByMonth.get(i + 1)?.closing ?? 0
+            )}
             editable={false}
+            extraColumns={summaryColumns - 1}
           />
         </TableBody>
       </Table>
@@ -164,12 +235,12 @@ export function ContoEconomicoTable({
   );
 }
 
-function SectionBand({ label }: { label: string }) {
+function SectionBand({ label, colSpan }: { label: string; colSpan: number }) {
   return (
     <TableRow className="hover:bg-transparent">
       <TableCell
-        colSpan={14}
-        className="sticky left-0 border-y-0 bg-gradient-to-r from-navy to-primary py-2 text-[11px] font-bold tracking-wider text-white uppercase"
+        colSpan={colSpan}
+        className="from-navy to-primary sticky left-0 border-y-0 bg-gradient-to-r py-2 text-[11px] font-bold tracking-wider text-white uppercase"
       >
         {label}
       </TableCell>
@@ -182,12 +253,14 @@ function CategoryRow({
   amounts,
   compareAmounts,
   mode,
+  monthsForAverage,
   onAmountChange,
 }: {
   category: ContoEconomicoCategory;
   amounts: Map<string, number>;
   compareAmounts?: Map<string, number>;
   mode: "budget" | "rendiconto";
+  monthsForAverage: number;
   onAmountChange?: (categoryId: string, month: number, value: number) => void;
 }) {
   const [saving, setSaving] = useState<number | null>(null);
@@ -207,7 +280,9 @@ function CategoryRow({
 
   return (
     <TableRow>
-      <TableCell className="sticky left-0 z-10 bg-card">{category.name}</TableCell>
+      <TableCell className="bg-card sticky left-0 z-10">
+        {category.name}
+      </TableCell>
       {MONTH_LABELS.map((_, index) => {
         const month = index + 1;
         const key = `${category.id}-${month}`;
@@ -244,12 +319,83 @@ function CategoryRow({
           </TableCell>
         );
       })}
-      <TableCell className="text-right font-mono text-xs font-medium tabular-nums">
-        {currencyFormatter.format(
-          MONTH_LABELS.reduce((sum, _, i) => sum + (amounts.get(`${category.id}-${i + 1}`) ?? 0), 0)
-        )}
-      </TableCell>
+      <SummaryCells
+        total={sumYear(amounts, category.id)}
+        monthsForAverage={monthsForAverage}
+        type={category.type}
+        showBudget={mode === "rendiconto"}
+        plannedTotal={
+          compareAmounts ? sumYear(compareAmounts, category.id) : undefined
+        }
+      />
     </TableRow>
+  );
+}
+
+function sumYear(amounts: Map<string, number>, categoryId: string) {
+  return MONTH_LABELS.reduce(
+    (sum, _, i) => sum + (amounts.get(`${categoryId}-${i + 1}`) ?? 0),
+    0
+  );
+}
+
+interface SummaryOptions {
+  monthsForAverage: number;
+  showBudget: boolean;
+  plannedTotal?: number;
+  type?: "income" | "expense";
+  hideProgress?: boolean;
+}
+
+/** Trailing columns of every amount row: yearly total, monthly average and,
+ *  in rendiconto, the yearly budget and how much of it has been reached. */
+function SummaryCells({
+  total,
+  monthsForAverage,
+  showBudget,
+  plannedTotal,
+  type,
+  hideProgress,
+}: SummaryOptions & { total: number }) {
+  const average = monthsForAverage > 0 ? total / monthsForAverage : 0;
+  const progress = plannedTotal ? total / plannedTotal : null;
+  const cellClass = "text-right font-mono text-xs tabular-nums";
+
+  return (
+    <>
+      <TableCell className={cn(cellClass, "font-medium")}>
+        {currencyFormatter.format(total)}
+      </TableCell>
+      <TableCell className={cellClass}>
+        {monthsForAverage > 0 ? currencyFormatter.format(average) : "—"}
+      </TableCell>
+      {showBudget && (
+        <>
+          <TableCell className={cellClass}>
+            {plannedTotal !== undefined
+              ? currencyFormatter.format(plannedTotal)
+              : "—"}
+          </TableCell>
+          <TableCell
+            className={cn(
+              cellClass,
+              progress !== null &&
+                progress > 1 &&
+                type === "expense" &&
+                "text-destructive",
+              progress !== null &&
+                progress >= 1 &&
+                type === "income" &&
+                "text-success"
+            )}
+          >
+            {progress === null || hideProgress
+              ? "—"
+              : percentFormatter.format(progress)}
+          </TableCell>
+        </>
+      )}
+    </>
   );
 }
 
@@ -258,18 +404,21 @@ function TotalRow({
   tone,
   values,
   totalValue,
+  summary,
 }: {
   label: string;
   tone: "success" | "destructive" | "neutral";
   values: number[];
   totalValue: number;
+  summary: SummaryOptions;
 }) {
   return (
     <TableRow
       className={cn(
         "border-t-2 font-bold hover:bg-transparent",
         tone === "success" && "border-t-success bg-success/5 text-success",
-        tone === "destructive" && "border-t-destructive bg-destructive/5 text-destructive",
+        tone === "destructive" &&
+          "border-t-destructive bg-destructive/5 text-destructive",
         tone === "neutral" && "border-t-primary bg-primary/5 text-primary"
       )}
     >
@@ -277,13 +426,14 @@ function TotalRow({
         {label}
       </TableCell>
       {values.map((v, i) => (
-        <TableCell key={i} className="text-right font-mono text-xs tabular-nums">
+        <TableCell
+          key={i}
+          className="text-right font-mono text-xs tabular-nums"
+        >
           {currencyFormatter.format(v)}
         </TableCell>
       ))}
-      <TableCell className="text-right font-mono text-xs tabular-nums">
-        {currencyFormatter.format(totalValue)}
-      </TableCell>
+      <SummaryCells total={totalValue} {...summary} />
     </TableRow>
   );
 }
@@ -294,19 +444,21 @@ function BalanceRow({
   totalValue,
   editable,
   onChange,
+  extraColumns,
 }: {
   label: string;
   values: number[];
   totalValue: number;
   editable: boolean;
   onChange?: (month: number, value: number) => void;
+  extraColumns: number;
 }) {
   const [editingMonth, setEditingMonth] = useState<number | null>(null);
   const [draft, setDraft] = useState("");
 
   return (
-    <TableRow className="bg-muted/40 font-medium hover:bg-muted/40">
-      <TableCell className="sticky left-0 z-10 bg-muted/40 text-[11px] tracking-wider text-muted-foreground uppercase">
+    <TableRow className="bg-muted/40 hover:bg-muted/40 font-medium">
+      <TableCell className="bg-muted/40 text-muted-foreground sticky left-0 z-10 text-[11px] tracking-wider uppercase">
         {label}
       </TableCell>
       {values.map((v, i) => {
@@ -340,7 +492,7 @@ function BalanceRow({
             key={month}
             className={cn(
               "text-right font-mono text-xs tabular-nums",
-              editable && "cursor-pointer hover:bg-accent"
+              editable && "hover:bg-accent cursor-pointer"
             )}
             onClick={() => {
               if (!editable) return;
@@ -355,6 +507,7 @@ function BalanceRow({
       <TableCell className="text-right font-mono text-xs tabular-nums">
         {currencyFormatter.format(totalValue)}
       </TableCell>
+      <TableCell colSpan={extraColumns} />
     </TableRow>
   );
 }
