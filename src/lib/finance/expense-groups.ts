@@ -24,6 +24,7 @@ const NAMED_GROUPS = [
       "FORMAZIONE",
       "IMPOSTE",
       "PREVIDENZA",
+      "ELETTRONICA",
     ],
   },
 ];
