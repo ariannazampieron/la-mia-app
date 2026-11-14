@@ -4,6 +4,17 @@ import { and, eq, inArray, lt, sql } from "drizzle-orm";
 
 export const TAX_RATE = 0.23;
 
+/**
+ * Years with a tax regime change: up to `fixedUntilMonth` (included) the tax provision is a
+ * known amount, and the 23% only applies to revenue from the following month onwards.
+ */
+const TAX_REGIME_CHANGES: Record<
+  number,
+  { fixedAmount: number; fixedUntilMonth: number }
+> = {
+  2026: { fixedAmount: 22095.33, fixedUntilMonth: 10 },
+};
+
 /** Current balance of a single account: opening balance + signed sum of all its transactions. */
 export async function getAccountBalance(accountId: string): Promise<number> {
   const [account] = await db
@@ -24,10 +35,11 @@ export async function getAccountBalance(accountId: string): Promise<number> {
   return Number(account.openingBalance) + Number(row?.signedTotal ?? 0);
 }
 
-/** Total revenue for the year: sum of income transactions in "Clienti_*" categories. */
+/** Total revenue for the year (optionally from `fromMonth`): income in "Clienti_*" categories. */
 export async function getFatturatoAnnuale(
   userId: string,
-  year: number
+  year: number,
+  fromMonth = 1
 ): Promise<number> {
   const [row] = await db
     .select({ total: sql<string>`coalesce(sum(${transactions.amount}), 0)` })
@@ -38,7 +50,8 @@ export async function getFatturatoAnnuale(
         eq(transactions.userId, userId),
         eq(transactions.type, "income"),
         eq(categories.isClientRevenueCategory, true),
-        sql`extract(year from ${transactions.date}) = ${year}`
+        sql`extract(year from ${transactions.date}) = ${year}`,
+        sql`extract(month from ${transactions.date}) >= ${fromMonth}`
       )
     );
   return Number(row?.total ?? 0);
@@ -64,16 +77,45 @@ export async function getImposteAnnuali(
   return Number(row?.total ?? 0);
 }
 
-/** Fondo Tasse = 23% del fatturato annuale - imposte già pagate nell'anno. */
+export interface FondoTasseBreakdown {
+  /** Known provision for the months before a regime change (0 in a normal year). */
+  fixedAmount: number;
+  /** Last month covered by `fixedAmount`, or null in a normal year. */
+  fixedUntilMonth: number | null;
+  /** Revenue the 23% applies to (whole year, or from the month after a regime change). */
+  taxedRevenue: number;
+  imposte: number;
+  total: number;
+}
+
+/**
+ * Fondo Tasse = 23% del fatturato - imposte già pagate nell'anno; negli anni con cambio
+ * di regime il 23% vale solo dal mese successivo e prima si usa l'importo fisso.
+ */
+export async function getFondoTasseBreakdown(
+  userId: string,
+  year: number
+): Promise<FondoTasseBreakdown> {
+  const change = TAX_REGIME_CHANGES[year];
+  const [taxedRevenue, imposte] = await Promise.all([
+    getFatturatoAnnuale(userId, year, change ? change.fixedUntilMonth + 1 : 1),
+    getImposteAnnuali(userId, year),
+  ]);
+  const fixedAmount = change?.fixedAmount ?? 0;
+  return {
+    fixedAmount,
+    fixedUntilMonth: change?.fixedUntilMonth ?? null,
+    taxedRevenue,
+    imposte,
+    total: fixedAmount + taxedRevenue * TAX_RATE - imposte,
+  };
+}
+
 export async function getFondoTasse(
   userId: string,
   year: number
 ): Promise<number> {
-  const [fatturato, imposte] = await Promise.all([
-    getFatturatoAnnuale(userId, year),
-    getImposteAnnuali(userId, year),
-  ]);
-  return fatturato * TAX_RATE - imposte;
+  return (await getFondoTasseBreakdown(userId, year)).total;
 }
 
 /** Risparmio = saldo del conto di risparmio - fondo tasse. */
