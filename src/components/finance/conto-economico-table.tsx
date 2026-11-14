@@ -116,7 +116,7 @@ export function ContoEconomicoTable({
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead className="bg-accent/60 sticky left-0 z-10 min-w-48">
+            <TableHead className="from-accent/60 to-accent/60 bg-card sticky left-0 z-10 min-w-48 bg-linear-to-r">
               —
             </TableHead>
             {MONTH_LABELS.map((m) => (
@@ -427,7 +427,14 @@ function TotalRow({
         tone === "neutral" && "border-t-primary bg-primary/5 text-primary"
       )}
     >
-      <TableCell className="sticky left-0 z-10 bg-inherit text-[11px] tracking-wider uppercase">
+      <TableCell
+        className={cn(
+          "bg-card sticky left-0 z-10 bg-linear-to-r text-[11px] tracking-wider uppercase",
+          tone === "success" && "from-success/5 to-success/5",
+          tone === "destructive" && "from-destructive/5 to-destructive/5",
+          tone === "neutral" && "from-primary/5 to-primary/5"
+        )}
+      >
         {label}
       </TableCell>
       {values.map((v, i) => (
@@ -463,7 +470,7 @@ function BalanceRow({
 
   return (
     <TableRow className="bg-muted/40 hover:bg-muted/40 font-medium">
-      <TableCell className="bg-muted/40 text-muted-foreground sticky left-0 z-10 text-[11px] tracking-wider uppercase">
+      <TableCell className="from-muted/40 to-muted/40 bg-card text-muted-foreground sticky left-0 z-10 bg-linear-to-r text-[11px] tracking-wider uppercase">
         {label}
       </TableCell>
       {values.map((v, i) => {

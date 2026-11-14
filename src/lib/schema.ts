@@ -264,4 +264,16 @@ export const budgetOpeningBalance = pgTable(
     unique("budget_opening_balance_unique_cell").on(t.userId, t.year, t.month),
   ]
 );
+
+/** One row per user for app-level preferences (e.g. the manually tracked last statement import date). */
+export const userSettings = pgTable("user_settings", {
+  userId: text("user_id")
+    .primaryKey()
+    .references(() => user.id, { onDelete: "cascade" }),
+  lastStatementImportDate: date("last_statement_import_date"),
+  updatedAt: timestamp("updated_at")
+    .defaultNow()
+    .$onUpdate(() => new Date())
+    .notNull(),
+});
 // =============================================================================

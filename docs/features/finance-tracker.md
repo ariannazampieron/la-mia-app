@@ -12,6 +12,7 @@ Monitora costi, ricavi e tasso di risparmio personali. Calcola automaticamente t
 - **`budget_entries`** — `userId`, `year`, `month`, `categoryId`, `plannedAmount`. Vincolo unico su `(userId, year, month, categoryId)`.
 - **`casa_manual_totals`** — `userId`, `section` (`acquisto`/`ristrutturazione`/`arredamento`/`accessori`/`utenze_manutenzione`), `year`, `amount`. Vincolo unico su `(userId, section, year)`. Memorizza i totali inseriti a mano per anni senza transazioni tracciate (es. 2025) o per sezioni senza categoria associata (es. "Acquisto").
 - **`budget_opening_balance`** — `userId`, `year`, `month`, `amount`. Vincolo unico su `(userId, year, month)`. Override manuale del saldo di apertura usato solo dal tab **Budget** (pianificato) per proiettare la liquidità futura mese per mese — il tab **Rendiconto** non ne ha bisogno: il saldo reale si calcola sempre da `finance_accounts.openingBalance` + transazioni reali precedenti al mese.
+- **`user_settings`** — `userId` (PK), `lastStatementImportDate`. Una riga per utente con le preferenze dell'app.
 
 ### Modified Tables
 Nessuna modifica di colonne — sostituita solo la categoria seed `ACQUISTI CASA` con 4 categorie più specifiche (vedi Notes).
@@ -24,6 +25,7 @@ Nessuna modifica di colonne — sostituita solo la categoria seed `ACQUISTI CASA
 - `POST /api/transactions` — crea transazione manuale
 - `PATCH /api/transactions/[id]` — modifica transazione
 - `DELETE /api/transactions/[id]` — elimina transazione
+- `GET/PUT /api/settings` — impostazioni utente; oggi solo `lastStatementImportDate`, la data dell'ultimo import degli estratti conto scritta a mano nella casella "Ultimo import" accanto al pulsante di import in Transazioni (promemoria, non aggiornata in automatico)
 - `POST /api/transactions/import/preview` — carica e valida un file CSV/XLSX, rileva duplicati e suggerisce categorie (senza inserire nulla)
 - `POST /api/transactions/import/confirm` — inserisce le transazioni approvate dall'utente
 - `GET /api/budget?year=` — budget entries + saldo di apertura/chiusura, ricavi/costi/cash flow pianificati per ciascuno dei 12 mesi (saldo proiettato a cascata da `budget_opening_balance` + `budget_entries` di tutti gli anni fino a quello richiesto)

@@ -18,6 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ImportDialog } from "@/components/finance/import-dialog";
+import { LastImportDate } from "@/components/finance/last-import-date";
 import { TransactionForm } from "@/components/finance/transaction-form";
 import {
   TransactionsTable,
@@ -123,7 +124,8 @@ export default function TransactionsPage() {
             Importa i tuoi estratti conto o aggiungi una transazione manuale.
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <LastImportDate />
           <Button
             variant="outline"
             onClick={() => {
