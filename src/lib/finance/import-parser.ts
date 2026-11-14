@@ -142,7 +142,9 @@ export function parseStatementFile(buffer: Buffer): ParseResult {
     category: findColumnIndex(headerRow, "category"),
   };
 
-  const missingColumns = (Object.keys(columnIndex) as (keyof typeof columnIndex)[])
+  const missingColumns = (
+    Object.keys(columnIndex) as (keyof typeof columnIndex)[]
+  )
     .filter((key) => key !== "category" && columnIndex[key] === -1)
     .map((key) => FIELD_LABELS_IT[key]);
   if (missingColumns.length > 0) {
@@ -169,7 +171,9 @@ export function parseStatementFile(buffer: Buffer): ParseResult {
     const rawAmount = String(line[columnIndex.amount] ?? "");
     const rawType = String(line[columnIndex.type] ?? "");
     const rawCategory =
-      columnIndex.category === -1 ? "" : String(line[columnIndex.category] ?? "");
+      columnIndex.category === -1
+        ? ""
+        : String(line[columnIndex.category] ?? "");
 
     const date = parseDate(rawDate);
     if (!date) {
@@ -206,7 +210,10 @@ export function parseStatementFile(buffer: Buffer): ParseResult {
     });
 
     if (!parsed.success) {
-      errors.push({ rowNumber, message: parsed.error.issues[0]?.message ?? "Riga non valida" });
+      errors.push({
+        rowNumber,
+        message: parsed.error.issues[0]?.message ?? "Riga non valida",
+      });
       continue;
     }
 

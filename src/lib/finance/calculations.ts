@@ -113,10 +113,16 @@ export async function getLiquidityAsOf(
   cutoffDate: string
 ): Promise<number> {
   const nonSavingsAccounts = await db
-    .select({ id: financeAccounts.id, openingBalance: financeAccounts.openingBalance })
+    .select({
+      id: financeAccounts.id,
+      openingBalance: financeAccounts.openingBalance,
+    })
     .from(financeAccounts)
     .where(
-      and(eq(financeAccounts.userId, userId), eq(financeAccounts.isSavingsAccount, false))
+      and(
+        eq(financeAccounts.userId, userId),
+        eq(financeAccounts.isSavingsAccount, false)
+      )
     );
 
   if (nonSavingsAccounts.length === 0) return 0;
@@ -132,7 +138,12 @@ export async function getLiquidityAsOf(
       signedTotal: sql<string>`coalesce(sum(case when ${transactions.type} = 'income' then ${transactions.amount} else -${transactions.amount} end), 0)`,
     })
     .from(transactions)
-    .where(and(inArray(transactions.accountId, accountIds), lt(transactions.date, cutoffDate)));
+    .where(
+      and(
+        inArray(transactions.accountId, accountIds),
+        lt(transactions.date, cutoffDate)
+      )
+    );
 
   return openingTotal + Number(row?.signedTotal ?? 0);
 }

@@ -12,7 +12,11 @@ import {
 } from "@/lib/api-utils";
 import { RATE_LIMITS } from "@/lib/rate-limit";
 import { isCashWithdrawal, isInternalMovement } from "@/lib/finance/categorize";
-import { CASH_ACCOUNT_NAME } from "@/lib/finance/accounts-seed";
+import { CASH_ACCOUNT_NAME } from "@/lib/finance/cash-account";
+import {
+  cashMirrorValues,
+  findCashAccountId,
+} from "@/lib/finance/cash-withdrawal";
 
 const confirmRowSchema = z.object({
   date: z.string().date(),
@@ -56,12 +60,15 @@ export async function POST(req: Request) {
     .limit(1);
   if (!account) return apiError("Conto non trovato", 404);
 
+  const importBatchId = randomUUID();
   const rows = data.rows.map((row) => {
     const withdrawal =
       row.type === "expense" &&
       (row.isCashWithdrawal ?? isCashWithdrawal(row.description, row.type));
     return {
       ...row,
+      // Generated up front so each withdrawal's "Contanti" mirror can point back to it.
+      id: randomUUID(),
       withdrawal,
       // A withdrawal is always internal: the real spending is tracked on "Contanti".
       internal:
@@ -73,32 +80,19 @@ export async function POST(req: Request) {
   // Withdrawals from a bank account reappear as income on the cash account.
   const withdrawals =
     account.name === CASH_ACCOUNT_NAME ? [] : rows.filter((r) => r.withdrawal);
-  let cashAccountId: string | null = null;
-  if (withdrawals.length > 0) {
-    const [cashAccount] = await db
-      .select({ id: financeAccounts.id })
-      .from(financeAccounts)
-      .where(
-        and(
-          eq(financeAccounts.userId, session.user.id),
-          eq(financeAccounts.name, CASH_ACCOUNT_NAME)
-        )
-      )
-      .limit(1);
-    if (!cashAccount) {
-      return apiError(
-        `Conto "${CASH_ACCOUNT_NAME}" non trovato: serve per registrare i prelievi.`,
-        422
-      );
-    }
-    cashAccountId = cashAccount.id;
+  const cashAccountId =
+    withdrawals.length > 0 ? await findCashAccountId(session.user.id) : null;
+  if (withdrawals.length > 0 && !cashAccountId) {
+    return apiError(
+      `Conto "${CASH_ACCOUNT_NAME}" non trovato: serve per registrare i prelievi.`,
+      422
+    );
   }
-
-  const importBatchId = randomUUID();
 
   await db.transaction(async (tx) => {
     await tx.insert(transactions).values(
       rows.map((row) => ({
+        id: row.id,
         userId: session.user.id,
         accountId: data.accountId,
         categoryId: row.withdrawal ? null : row.categoryId,
@@ -114,18 +108,19 @@ export async function POST(req: Request) {
 
     if (cashAccountId) {
       await tx.insert(transactions).values(
-        withdrawals.map((row) => ({
-          userId: session.user.id,
-          accountId: cashAccountId,
-          categoryId: null,
-          date: row.date,
-          description: `Prelievo da ${account.name}: ${row.description}`,
-          amount: row.amount.toFixed(2),
-          type: "income" as const,
-          isInternalTransfer: true,
-          source: "import" as const,
-          importBatchId,
-        }))
+        withdrawals.map((row) =>
+          cashMirrorValues(session.user.id, cashAccountId, {
+            id: row.id,
+            accountId: data.accountId,
+            accountName: account.name,
+            date: row.date,
+            description: row.description,
+            amount: row.amount.toFixed(2),
+            type: row.type,
+            source: "import",
+            importBatchId,
+          })
+        )
       );
     }
   });

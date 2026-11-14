@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { transactions, financeAccounts } from "@/lib/schema";
-import { and, desc, eq, gte, lte, count, isNull } from "drizzle-orm";
+import { and, desc, eq, gte, lte, count, isNull, sql } from "drizzle-orm";
 import {
   applyRateLimit,
   requireApiAuth,
@@ -10,6 +10,10 @@ import {
   apiError,
 } from "@/lib/api-utils";
 import { RATE_LIMITS } from "@/lib/rate-limit";
+import {
+  findCashAccountId,
+  syncCashMirror,
+} from "@/lib/finance/cash-withdrawal";
 
 const MAX_PAGE_SIZE = 50;
 
@@ -52,6 +56,8 @@ export async function GET(req: Request) {
         accountId: transactions.accountId,
         isInternalTransfer: transactions.isInternalTransfer,
         source: transactions.source,
+        // True when a "Contanti" income mirrors this row (it's a cash withdrawal).
+        isCashWithdrawal: sql<boolean>`exists (select 1 from transactions m where m.cash_source_id = ${transactions.id})`,
       })
       .from(transactions)
       .where(where)
@@ -77,6 +83,7 @@ const createTransactionSchema = z.object({
   amount: z.coerce.number().positive(),
   type: z.enum(["income", "expense"]),
   isInternalTransfer: z.boolean().default(false),
+  isCashWithdrawal: z.boolean().default(false),
 });
 
 export async function POST(req: Request) {
@@ -93,7 +100,7 @@ export async function POST(req: Request) {
   if (parseErr) return parseErr;
 
   const [account] = await db
-    .select({ id: financeAccounts.id })
+    .select({ id: financeAccounts.id, name: financeAccounts.name })
     .from(financeAccounts)
     .where(
       and(
@@ -104,20 +111,45 @@ export async function POST(req: Request) {
     .limit(1);
   if (!account) return apiError("Conto non trovato", 404);
 
-  const [created] = await db
-    .insert(transactions)
-    .values({
-      userId: session.user.id,
-      accountId: data.accountId,
-      categoryId: data.categoryId,
-      date: data.date,
-      description: data.description,
-      amount: data.amount.toFixed(2),
-      type: data.type,
-      isInternalTransfer: data.isInternalTransfer,
-      source: "manual",
-    })
-    .returning({ id: transactions.id });
+  const cashAccountId = data.isCashWithdrawal
+    ? await findCashAccountId(session.user.id)
+    : null;
+
+  const created = await db.transaction(async (tx) => {
+    const [row] = await tx
+      .insert(transactions)
+      .values({
+        userId: session.user.id,
+        accountId: data.accountId,
+        categoryId: data.categoryId,
+        date: data.date,
+        description: data.description,
+        amount: data.amount.toFixed(2),
+        type: data.type,
+        // A withdrawal is always internal: the real spending is tracked on "Contanti".
+        isInternalTransfer: data.isInternalTransfer || data.isCashWithdrawal,
+        source: "manual",
+      })
+      .returning({
+        id: transactions.id,
+        accountId: transactions.accountId,
+        date: transactions.date,
+        description: transactions.description,
+        amount: transactions.amount,
+        type: transactions.type,
+        source: transactions.source,
+      });
+    if (cashAccountId) {
+      await syncCashMirror(
+        tx,
+        session.user.id,
+        cashAccountId,
+        { ...row, accountName: account.name },
+        true
+      );
+    }
+    return row;
+  });
 
   return apiResponse({ id: created.id }, 201);
 }

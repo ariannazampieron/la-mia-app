@@ -9,6 +9,7 @@ import {
   integer,
   date,
   unique,
+  type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 
 // =============================================================================
@@ -167,6 +168,14 @@ export const transactions = pgTable(
       .notNull()
       .default("manual"),
     importBatchId: uuid("import_batch_id"),
+    // Set on the "Contanti" income mirrored from a cash withdrawal: points to the
+    // withdrawal on the bank account, so it follows its edits and its deletion.
+    cashSourceId: uuid("cash_source_id").references(
+      (): AnyPgColumn => transactions.id,
+      {
+        onDelete: "cascade",
+      }
+    ),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at")
       .defaultNow()
@@ -178,6 +187,7 @@ export const transactions = pgTable(
     index("transactions_account_id_idx").on(t.accountId),
     index("transactions_category_id_idx").on(t.categoryId),
     index("transactions_date_idx").on(t.date),
+    index("transactions_cash_source_id_idx").on(t.cashSourceId),
   ]
 );
 

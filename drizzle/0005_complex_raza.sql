@@ -1,0 +1,3 @@
+ALTER TABLE "transactions" ADD COLUMN "cash_source_id" uuid;--> statement-breakpoint
+ALTER TABLE "transactions" ADD CONSTRAINT "transactions_cash_source_id_transactions_id_fk" FOREIGN KEY ("cash_source_id") REFERENCES "public"."transactions"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+CREATE INDEX "transactions_cash_source_id_idx" ON "transactions" USING btree ("cash_source_id");

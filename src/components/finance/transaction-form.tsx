@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
 import type { TransactionRow } from "@/components/finance/transactions-table";
+import { CASH_ACCOUNT_NAME } from "@/lib/finance/cash-account";
 
 interface AccountOption {
   id: string;
@@ -42,6 +43,7 @@ interface TransactionFormValues {
   amount: string;
   type: "income" | "expense";
   isInternalTransfer: boolean;
+  isCashWithdrawal: boolean;
 }
 
 const EMPTY_VALUES: TransactionFormValues = {
@@ -52,6 +54,7 @@ const EMPTY_VALUES: TransactionFormValues = {
   amount: "",
   type: "expense",
   isInternalTransfer: false,
+  isCashWithdrawal: false,
 };
 
 export function TransactionForm({
@@ -83,6 +86,7 @@ export function TransactionForm({
         amount: transaction.amount,
         type: transaction.type,
         isInternalTransfer: transaction.isInternalTransfer,
+        isCashWithdrawal: transaction.isCashWithdrawal,
       });
     } else {
       setValues({ ...EMPTY_VALUES, accountId: accounts[0]?.id ?? "" });
@@ -90,6 +94,10 @@ export function TransactionForm({
   }, [open, transaction, accounts]);
 
   const relevantCategories = categories.filter((c) => c.type === values.type);
+  // Only an expense on a bank account can be a cash withdrawal.
+  const canBeWithdrawal =
+    values.type === "expense" &&
+    accounts.find((a) => a.id === values.accountId)?.name !== CASH_ACCOUNT_NAME;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -103,9 +111,12 @@ export function TransactionForm({
         amount: Number(values.amount),
         type: values.type,
         isInternalTransfer: values.isInternalTransfer,
+        isCashWithdrawal: canBeWithdrawal && values.isCashWithdrawal,
       };
       const res = await fetch(
-        transaction ? `/api/transactions/${transaction.id}` : "/api/transactions",
+        transaction
+          ? `/api/transactions/${transaction.id}`
+          : "/api/transactions",
         {
           method: transaction ? "PATCH" : "POST",
           headers: { "Content-Type": "application/json" },
@@ -116,7 +127,9 @@ export function TransactionForm({
         const body = await res.json().catch(() => ({}));
         throw new Error(body.error ?? "Salvataggio non riuscito");
       }
-      toast.success(transaction ? "Transazione aggiornata" : "Transazione aggiunta");
+      toast.success(
+        transaction ? "Transazione aggiornata" : "Transazione aggiunta"
+      );
       onOpenChange(false);
       onSaved();
     } catch (err) {
@@ -131,7 +144,9 @@ export function TransactionForm({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>
-            {transaction ? "Modifica transazione" : "Aggiungi transazione manuale"}
+            {transaction
+              ? "Modifica transazione"
+              : "Aggiungi transazione manuale"}
           </DialogTitle>
           <DialogDescription>
             {transaction
@@ -149,7 +164,9 @@ export function TransactionForm({
                 type="date"
                 required
                 value={values.date}
-                onChange={(e) => setValues((v) => ({ ...v, date: e.target.value }))}
+                onChange={(e) =>
+                  setValues((v) => ({ ...v, date: e.target.value }))
+                }
               />
             </div>
             <div className="space-y-1.5">
@@ -161,7 +178,9 @@ export function TransactionForm({
                 min="0.01"
                 required
                 value={values.amount}
-                onChange={(e) => setValues((v) => ({ ...v, amount: e.target.value }))}
+                onChange={(e) =>
+                  setValues((v) => ({ ...v, amount: e.target.value }))
+                }
               />
             </div>
           </div>
@@ -172,7 +191,9 @@ export function TransactionForm({
               id="tx-description"
               required
               value={values.description}
-              onChange={(e) => setValues((v) => ({ ...v, description: e.target.value }))}
+              onChange={(e) =>
+                setValues((v) => ({ ...v, description: e.target.value }))
+              }
             />
           </div>
 
@@ -198,7 +219,9 @@ export function TransactionForm({
               <Label htmlFor="tx-account">Conto</Label>
               <Select
                 value={values.accountId}
-                onValueChange={(value) => setValues((v) => ({ ...v, accountId: value }))}
+                onValueChange={(value) =>
+                  setValues((v) => ({ ...v, accountId: value }))
+                }
               >
                 <SelectTrigger id="tx-account" className="w-full">
                   <SelectValue placeholder="Seleziona" />
@@ -218,7 +241,9 @@ export function TransactionForm({
             <Label htmlFor="tx-category">Categoria</Label>
             <Select
               value={values.categoryId || undefined}
-              onValueChange={(value) => setValues((v) => ({ ...v, categoryId: value }))}
+              onValueChange={(value) =>
+                setValues((v) => ({ ...v, categoryId: value }))
+              }
             >
               <SelectTrigger id="tx-category" className="w-full">
                 <SelectValue placeholder="Da categorizzare" />
@@ -233,15 +258,39 @@ export function TransactionForm({
             </Select>
           </div>
 
-          <label className="flex items-center gap-2 text-sm text-muted-foreground">
+          <label className="text-muted-foreground flex items-center gap-2 text-sm">
             <Checkbox
               checked={values.isInternalTransfer}
               onCheckedChange={(checked) =>
-                setValues((v) => ({ ...v, isInternalTransfer: checked === true }))
+                // A withdrawal is always internal, so unticking this also unticks it.
+                setValues((v) => ({
+                  ...v,
+                  isInternalTransfer: checked === true,
+                  isCashWithdrawal: checked === true && v.isCashWithdrawal,
+                }))
               }
             />
-            Movimento interno (trasferimento tra i tuoi conti, escluso dal rendiconto)
+            Movimento interno (trasferimento tra i tuoi conti, escluso dal
+            rendiconto)
           </label>
+
+          {canBeWithdrawal && (
+            <label className="text-muted-foreground flex items-center gap-2 text-sm">
+              <Checkbox
+                checked={values.isCashWithdrawal}
+                onCheckedChange={(checked) =>
+                  setValues((v) => ({
+                    ...v,
+                    isCashWithdrawal: checked === true,
+                    isInternalTransfer:
+                      checked === true || v.isInternalTransfer,
+                  }))
+                }
+              />
+              Prelievo in contanti (aggiunge la stessa cifra come entrata sul
+              conto {CASH_ACCOUNT_NAME})
+            </label>
+          )}
 
           <DialogFooter>
             <Button type="submit" disabled={saving}>

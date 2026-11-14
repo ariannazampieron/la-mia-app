@@ -13,9 +13,6 @@ export const FIXED_ACCOUNT_NAMES = [
 
 export const SAVINGS_ACCOUNT_NAME = "Conto Arancio Deposito";
 
-/** Account that receives the mirrored income of every imported cash withdrawal. */
-export const CASH_ACCOUNT_NAME = "Contanti";
-
 /** Seeds the fixed list of accounts for a user if they don't have any yet. */
 export async function ensureAccountsSeeded(userId: string) {
   const existing = await db

@@ -28,7 +28,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { MoreHorizontal, Pencil, Trash2, Inbox, ArrowLeftRight } from "lucide-react";
+import {
+  MoreHorizontal,
+  Pencil,
+  Trash2,
+  Inbox,
+  ArrowLeftRight,
+} from "lucide-react";
 
 export interface TransactionRow {
   id: string;
@@ -39,6 +45,8 @@ export interface TransactionRow {
   categoryId: string | null;
   accountId: string;
   isInternalTransfer: boolean;
+  /** A "Contanti" income mirrors this row. */
+  isCashWithdrawal: boolean;
   source: "import" | "manual";
 }
 
@@ -95,12 +103,13 @@ export function TransactionsTable({
 
   if (transactions.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-border py-16 text-center">
-        <Inbox className="h-8 w-8 text-muted-foreground" />
+      <div className="border-border flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed py-16 text-center">
+        <Inbox className="text-muted-foreground h-8 w-8" />
         <div>
           <p className="font-medium">Nessuna transazione</p>
-          <p className="text-sm text-muted-foreground">
-            Importa il tuo primo estratto conto o aggiungi una transazione manuale.
+          <p className="text-muted-foreground text-sm">
+            Importa il tuo primo estratto conto o aggiungi una transazione
+            manuale.
           </p>
         </div>
       </div>
@@ -109,7 +118,7 @@ export function TransactionsTable({
 
   return (
     <>
-      <div className="overflow-x-auto rounded-lg border border-border">
+      <div className="border-border overflow-x-auto rounded-lg border">
         <Table>
           <TableHeader>
             <TableRow>
@@ -124,25 +133,27 @@ export function TransactionsTable({
           <TableBody>
             {transactions.map((tx) => (
               <TableRow key={tx.id}>
-                <TableCell className="whitespace-nowrap text-muted-foreground">
+                <TableCell className="text-muted-foreground whitespace-nowrap">
                   {tx.date}
                 </TableCell>
                 <TableCell className="max-w-64 truncate">
                   <span className="flex items-center gap-1.5">
                     {tx.isInternalTransfer && (
-                      <ArrowLeftRight className="h-3 w-3 shrink-0 text-muted-foreground" />
+                      <ArrowLeftRight className="text-muted-foreground h-3 w-3 shrink-0" />
                     )}
                     {tx.description}
                   </span>
                 </TableCell>
                 <TableCell>
                   {tx.categoryId ? (
-                    <Badge variant="outline">{categoryMap.get(tx.categoryId)}</Badge>
+                    <Badge variant="outline">
+                      {categoryMap.get(tx.categoryId)}
+                    </Badge>
                   ) : (
                     <Badge variant="warning">Da categorizzare</Badge>
                   )}
                 </TableCell>
-                <TableCell className="whitespace-nowrap text-muted-foreground">
+                <TableCell className="text-muted-foreground whitespace-nowrap">
                   {accountMap.get(tx.accountId)}
                 </TableCell>
                 <TableCell
