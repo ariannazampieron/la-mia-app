@@ -11,7 +11,7 @@ const SUBSTITUTE_TAX_RATE = 0.15;
 const PROFITABILITY_COEFFICIENT = 0.78;
 
 /** INPS Gestione Commercianti, with the 35% reduction for forfettari. */
-const INPS_MINIMUM_INCOME = 18808; // reddito minimale 2026: 4 × 1.152,93 € of fixed contributions
+const INPS_MINIMUM_INCOME = 18808; // reddito minimale 2026 (full fixed contribution ≈ 4.612 €/year)
 const INPS_RATE = 0.2448;
 const INPS_REDUCTION = 0.35;
 
@@ -36,8 +36,9 @@ export const TAX_YEAR_PARAMS: Record<number, TaxYearParams> = {
     substituteTaxAdvancesPaid: 2891.5 + 2891.5,
     // First year in Gestione Commercianti: no advances on the excess yet.
     inpsExcessAdvancesPaid: 0,
-    // Four fixed rates at the amount paid now.
-    nextYearFixedContributions: 4 * 1152.93,
+    // Fixed contributions with the 35% reduction: 3.074 €/year in four rates (confirmed;
+    // the 2026 rates were uneven only because the reduction was requested late).
+    nextYearFixedContributions: 3074,
   },
 };
 

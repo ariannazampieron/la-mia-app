@@ -32,7 +32,7 @@ Regime forfettario (imposta sostitutiva 15%, coefficiente di redditività 78%, A
 
 Pagato nell'anno Y+1: saldo imposta Y (imposta − acconti già versati) + acconti imposta Y+1 (= imposta Y) + contributi INPS fissi Y+1 + saldo eccedenza INPS Y + acconti eccedenza INPS Y+1 (= eccedenza Y).
 
-I dati che non si ricavano dal fatturato (contributi versati, acconti già pagati, contributi fissi dell'anno dopo) sono in `TAX_YEAR_PARAMS`, uno per anno, presi da dichiarazione e F24. Per stimare il 2028 sul fatturato 2027 va aggiunta la voce 2027.
+I dati che non si ricavano dal fatturato (contributi versati, acconti già pagati, contributi fissi dell'anno dopo: 3.074 € l'anno con la riduzione del 35%) sono in `TAX_YEAR_PARAMS`, uno per anno, presi da dichiarazione e F24. Per stimare il 2028 sul fatturato 2027 va aggiunta la voce 2027.
 
 Semplificazioni: aliquota INPS unica 24,48% (non lo scaglione più alto oltre il primo limite), nessun diritto camerale, nessun altro reddito IRPEF; un eventuale credito (acconti superiori all'imposta) è considerato zero.
 
