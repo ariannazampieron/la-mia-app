@@ -17,6 +17,7 @@ import {
   matchCategoryFromHistory,
   suggestCategoryViaAI,
   isInternalMovement,
+  isCashWithdrawal,
   type HistoryCandidate,
 } from "@/lib/finance/categorize";
 
@@ -31,6 +32,8 @@ export interface PreviewRow {
   categorySource: "csv" | "history" | "ai" | null;
   isDuplicate: boolean;
   isInternalTransfer: boolean;
+  /** Expense row that will also be added as income on the "Contanti" account. */
+  isCashWithdrawal: boolean;
 }
 
 export async function POST(req: Request) {
@@ -169,6 +172,7 @@ export async function POST(req: Request) {
       categorySource,
       isDuplicate,
       isInternalTransfer,
+      isCashWithdrawal: isCashWithdrawal(row.description, row.type),
     });
   }
 

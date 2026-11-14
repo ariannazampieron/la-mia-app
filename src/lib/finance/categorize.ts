@@ -119,9 +119,20 @@ export async function suggestCategoryViaAI(
 // Transfers between own accounts and cash withdrawals (moved to the "Contanti" account)
 // are not real income/expenses: they're imported uncategorized and excluded from the Rendiconto.
 // "Trasferimento avviato dall'utente" is how PayPal names a withdrawal to the bank account.
-const INTERNAL_MOVEMENT_PATTERN =
-  /giroconto|ritiro\s+contanti|prelievo|prelevamento|trasferimento avviato dall.utente/i;
+const TRANSFER_PATTERN = /giroconto|trasferimento avviato dall.utente/i;
+const CASH_WITHDRAWAL_PATTERN = /ritiro\s+contanti|prelievo|prelevamento/i;
+
+/** A cash withdrawal: an expense on a bank account that should reappear as income on "Contanti". */
+export function isCashWithdrawal(
+  description: string,
+  type: "income" | "expense"
+): boolean {
+  return type === "expense" && CASH_WITHDRAWAL_PATTERN.test(description);
+}
 
 export function isInternalMovement(description: string): boolean {
-  return INTERNAL_MOVEMENT_PATTERN.test(description);
+  return (
+    TRANSFER_PATTERN.test(description) ||
+    CASH_WITHDRAWAL_PATTERN.test(description)
+  );
 }

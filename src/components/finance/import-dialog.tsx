@@ -125,7 +125,28 @@ export function ImportDialog({
   function toggleRowInternal(rowNumber: number, isInternalTransfer: boolean) {
     setPreviewRows((prev) =>
       prev.map((r) =>
-        r.rowNumber === rowNumber ? { ...r, isInternalTransfer } : r
+        r.rowNumber === rowNumber
+          ? // A withdrawal is always internal, so unticking "Interno" also unticks "Prelievo".
+            {
+              ...r,
+              isInternalTransfer,
+              isCashWithdrawal: isInternalTransfer && r.isCashWithdrawal,
+            }
+          : r
+      )
+    );
+  }
+
+  function toggleRowWithdrawal(rowNumber: number, isCashWithdrawal: boolean) {
+    setPreviewRows((prev) =>
+      prev.map((r) =>
+        r.rowNumber === rowNumber
+          ? {
+              ...r,
+              isCashWithdrawal,
+              isInternalTransfer: isCashWithdrawal || r.isInternalTransfer,
+            }
+          : r
       )
     );
   }
@@ -153,6 +174,7 @@ export function ImportDialog({
             type: r.type,
             categoryId: r.categoryId,
             isInternalTransfer: r.isInternalTransfer,
+            isCashWithdrawal: r.isCashWithdrawal,
           })),
         }),
       });
@@ -161,7 +183,11 @@ export function ImportDialog({
         throw new Error(body.error ?? "Import non riuscito");
       }
       const body = await res.json();
-      toast.success(`${body.imported} transazioni importate`);
+      toast.success(
+        body.cashWithdrawals > 0
+          ? `${body.imported} transazioni importate, ${body.cashWithdrawals} prelievi aggiunti a Contanti`
+          : `${body.imported} transazioni importate`
+      );
       setOpen(false);
       reset();
       onImported();
@@ -271,6 +297,7 @@ export function ImportDialog({
                       categories={availableCategories}
                       onCategoryChange={updateRowCategory}
                       onInternalChange={toggleRowInternal}
+                      onWithdrawalChange={toggleRowWithdrawal}
                     />
                   ))}
                 </div>
@@ -344,11 +371,13 @@ function PreviewRowItem({
   categories,
   onCategoryChange,
   onInternalChange,
+  onWithdrawalChange,
 }: {
   row: PreviewRow;
   categories: CategoryOption[];
   onCategoryChange: (rowNumber: number, categoryId: string) => void;
   onInternalChange: (rowNumber: number, isInternalTransfer: boolean) => void;
+  onWithdrawalChange: (rowNumber: number, isCashWithdrawal: boolean) => void;
 }) {
   const relevantCategories = categories.filter((c) => c.type === row.type);
 
@@ -390,6 +419,17 @@ function PreviewRowItem({
         />
         Interno
       </label>
+      {row.type === "expense" && (
+        <label className="text-muted-foreground flex shrink-0 items-center gap-1.5 text-xs">
+          <Checkbox
+            checked={row.isCashWithdrawal}
+            onCheckedChange={(checked) =>
+              onWithdrawalChange(row.rowNumber, checked === true)
+            }
+          />
+          Prelievo
+        </label>
+      )}
       {!row.categoryId && !row.isInternalTransfer && (
         <Badge variant="warning" className="shrink-0">
           Da categorizzare

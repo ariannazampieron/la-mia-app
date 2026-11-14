@@ -11,7 +11,8 @@ import {
   apiError,
 } from "@/lib/api-utils";
 import { RATE_LIMITS } from "@/lib/rate-limit";
-import { isInternalMovement } from "@/lib/finance/categorize";
+import { isCashWithdrawal, isInternalMovement } from "@/lib/finance/categorize";
+import { CASH_ACCOUNT_NAME } from "@/lib/finance/accounts-seed";
 
 const confirmRowSchema = z.object({
   date: z.string().date(),
@@ -22,6 +23,7 @@ const confirmRowSchema = z.object({
   // Optional so a client that doesn't send it (e.g. a tab opened before a deploy)
   // still gets transfers/withdrawals detected from the description.
   isInternalTransfer: z.boolean().optional(),
+  isCashWithdrawal: z.boolean().optional(),
 });
 
 const confirmSchema = z.object({
@@ -43,7 +45,7 @@ export async function POST(req: Request) {
   if (parseErr) return parseErr;
 
   const [account] = await db
-    .select({ id: financeAccounts.id })
+    .select({ id: financeAccounts.id, name: financeAccounts.name })
     .from(financeAccounts)
     .where(
       and(
@@ -54,23 +56,83 @@ export async function POST(req: Request) {
     .limit(1);
   if (!account) return apiError("Conto non trovato", 404);
 
+  const rows = data.rows.map((row) => {
+    const withdrawal =
+      row.type === "expense" &&
+      (row.isCashWithdrawal ?? isCashWithdrawal(row.description, row.type));
+    return {
+      ...row,
+      withdrawal,
+      // A withdrawal is always internal: the real spending is tracked on "Contanti".
+      internal:
+        withdrawal ||
+        (row.isInternalTransfer ?? isInternalMovement(row.description)),
+    };
+  });
+
+  // Withdrawals from a bank account reappear as income on the cash account.
+  const withdrawals =
+    account.name === CASH_ACCOUNT_NAME ? [] : rows.filter((r) => r.withdrawal);
+  let cashAccountId: string | null = null;
+  if (withdrawals.length > 0) {
+    const [cashAccount] = await db
+      .select({ id: financeAccounts.id })
+      .from(financeAccounts)
+      .where(
+        and(
+          eq(financeAccounts.userId, session.user.id),
+          eq(financeAccounts.name, CASH_ACCOUNT_NAME)
+        )
+      )
+      .limit(1);
+    if (!cashAccount) {
+      return apiError(
+        `Conto "${CASH_ACCOUNT_NAME}" non trovato: serve per registrare i prelievi.`,
+        422
+      );
+    }
+    cashAccountId = cashAccount.id;
+  }
+
   const importBatchId = randomUUID();
 
-  await db.insert(transactions).values(
-    data.rows.map((row) => ({
-      userId: session.user.id,
-      accountId: data.accountId,
-      categoryId: row.categoryId,
-      date: row.date,
-      description: row.description,
-      amount: row.amount.toFixed(2),
-      type: row.type,
-      isInternalTransfer:
-        row.isInternalTransfer ?? isInternalMovement(row.description),
-      source: "import" as const,
-      importBatchId,
-    }))
-  );
+  await db.transaction(async (tx) => {
+    await tx.insert(transactions).values(
+      rows.map((row) => ({
+        userId: session.user.id,
+        accountId: data.accountId,
+        categoryId: row.withdrawal ? null : row.categoryId,
+        date: row.date,
+        description: row.description,
+        amount: row.amount.toFixed(2),
+        type: row.type,
+        isInternalTransfer: row.internal,
+        source: "import" as const,
+        importBatchId,
+      }))
+    );
 
-  return apiResponse({ imported: data.rows.length, importBatchId });
+    if (cashAccountId) {
+      await tx.insert(transactions).values(
+        withdrawals.map((row) => ({
+          userId: session.user.id,
+          accountId: cashAccountId,
+          categoryId: null,
+          date: row.date,
+          description: `Prelievo da ${account.name}: ${row.description}`,
+          amount: row.amount.toFixed(2),
+          type: "income" as const,
+          isInternalTransfer: true,
+          source: "import" as const,
+          importBatchId,
+        }))
+      );
+    }
+  });
+
+  return apiResponse({
+    imported: data.rows.length,
+    cashWithdrawals: withdrawals.length,
+    importBatchId,
+  });
 }
