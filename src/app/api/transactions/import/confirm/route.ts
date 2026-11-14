@@ -11,6 +11,7 @@ import {
   apiError,
 } from "@/lib/api-utils";
 import { RATE_LIMITS } from "@/lib/rate-limit";
+import { isInternalMovement } from "@/lib/finance/categorize";
 
 const confirmRowSchema = z.object({
   date: z.string().date(),
@@ -18,7 +19,9 @@ const confirmRowSchema = z.object({
   amount: z.number().positive(),
   type: z.enum(["income", "expense"]),
   categoryId: z.string().uuid().nullable(),
-  isInternalTransfer: z.boolean().default(false),
+  // Optional so a client that doesn't send it (e.g. a tab opened before a deploy)
+  // still gets transfers/withdrawals detected from the description.
+  isInternalTransfer: z.boolean().optional(),
 });
 
 const confirmSchema = z.object({
@@ -62,7 +65,8 @@ export async function POST(req: Request) {
       description: row.description,
       amount: row.amount.toFixed(2),
       type: row.type,
-      isInternalTransfer: row.isInternalTransfer,
+      isInternalTransfer:
+        row.isInternalTransfer ?? isInternalMovement(row.description),
       source: "import" as const,
       importBatchId,
     }))
