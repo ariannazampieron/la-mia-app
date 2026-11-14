@@ -6,10 +6,12 @@ import {
   AccountCard,
   type AccountSummary,
 } from "@/components/finance/account-card";
+import { LastImportNote } from "@/components/finance/last-import-note";
 
 export default function AccountsPage() {
   const [accounts, setAccounts] = useState<AccountSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [lastImportDate, setLastImportDate] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -25,6 +27,13 @@ export default function AccountsPage() {
       }
     }
     load();
+    fetch("/api/settings")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((body) => {
+        if (!cancelled)
+          setLastImportDate(body?.lastStatementImportDate ?? null);
+      })
+      .catch(() => {});
     return () => {
       cancelled = true;
     };
@@ -34,22 +43,23 @@ export default function AccountsPage() {
     <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Conti</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Imposta il saldo di partenza di ciascun conto: il saldo corrente
-          viene poi calcolato sommando le transazioni importate o inserite
+        <p className="text-muted-foreground mt-1 text-sm">
+          Imposta il saldo di partenza di ciascun conto: il saldo corrente viene
+          poi calcolato sommando le transazioni importate o inserite
           manualmente.
         </p>
+        <LastImportNote date={lastImportDate} />
       </div>
 
       {error && (
-        <div className="flex items-center gap-2 rounded-lg border border-destructive/20 bg-destructive/5 p-4 text-sm text-destructive">
+        <div className="border-destructive/20 bg-destructive/5 text-destructive flex items-center gap-2 rounded-lg border p-4 text-sm">
           <AlertCircle className="h-4 w-4 shrink-0" />
           {error}
         </div>
       )}
 
       {!accounts && !error && (
-        <div className="flex items-center justify-center py-16 text-muted-foreground">
+        <div className="text-muted-foreground flex items-center justify-center py-16">
           <Loader2 className="h-5 w-5 animate-spin" />
         </div>
       )}
@@ -63,7 +73,9 @@ export default function AccountsPage() {
               tone="sage"
               onUpdated={(updated) =>
                 setAccounts((prev) =>
-                  prev ? prev.map((a) => (a.id === updated.id ? updated : a)) : prev
+                  prev
+                    ? prev.map((a) => (a.id === updated.id ? updated : a))
+                    : prev
                 )
               }
             />

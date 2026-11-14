@@ -14,8 +14,10 @@ import {
 } from "@/lib/finance/calculations";
 import { IndicatorCard } from "@/components/finance/indicator-card";
 import { EditableAmount } from "@/components/finance/editable-amount";
+import { LastImportNote } from "@/components/finance/last-import-note";
 import { getPatrimonio } from "@/lib/finance/patrimonio";
 import { getTaxOverview } from "@/lib/finance/tax-overview";
+import { getLastStatementImportDate } from "@/lib/finance/user-settings";
 
 /** Short Italian month name ("ott", "nov") for a 1-based month. */
 function monthName(month: number) {
@@ -49,6 +51,7 @@ export default async function DashboardPage() {
     savingsBalance,
     patrimonio,
     taxOverview,
+    lastImportDate,
   ] = await Promise.all([
     getFatturatoAnnuale(userId, year),
     getImposteAnnuali(userId, year),
@@ -58,6 +61,7 @@ export default async function DashboardPage() {
     savingsAccount ? getAccountBalance(savingsAccount.id) : Promise.resolve(0),
     getPatrimonio(userId),
     getTaxOverview(userId),
+    getLastStatementImportDate(userId),
   ]);
 
   // Taxes accrued so far: what's left for this year plus next year's estimate to date.
@@ -67,31 +71,18 @@ export default async function DashboardPage() {
   );
   const disponibilitaLiquida =
     risparmio + fondo.total + liquidita - tasseDaPagare;
-  const pensionSince = new Date(patrimonio.pensionFundSince).toLocaleDateString(
-    "it-IT",
-    {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    }
-  );
 
   const fondoTasse = fondo.total;
   const fondoTasseRows =
     fondo.fixedUntilMonth === null
-      ? [
-          {
-            label: "Fatturato annuale (23%)",
-            value: fondo.taxedRevenue * TAX_RATE,
-          },
-        ]
+      ? [{ label: "23% fatturato", value: fondo.taxedRevenue * TAX_RATE }]
       : [
           {
-            label: `Accantonamento gen–${monthName(fondo.fixedUntilMonth)} (regime precedente)`,
+            label: `Gen–${monthName(fondo.fixedUntilMonth)} (fisso)`,
             value: fondo.fixedAmount,
           },
           {
-            label: `Fatturato da ${monthName(fondo.fixedUntilMonth + 1)} (23%)`,
+            label: `23% da ${monthName(fondo.fixedUntilMonth + 1)}`,
             value: fondo.taxedRevenue * TAX_RATE,
           },
         ];
@@ -104,9 +95,10 @@ export default async function DashboardPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Home</h1>
         <p className="text-muted-foreground mt-1 text-sm">
-          Risparmio, fondo tasse e liquidità disponibile per il {year},
-          aggiornati in automatico dalle tue transazioni.
+          Risparmio, tasse, liquidità e patrimonio per il {year}, aggiornati in
+          automatico dalle tue transazioni.
         </p>
+        <LastImportNote date={lastImportDate} />
       </div>
 
       {!hasData && (
@@ -135,7 +127,7 @@ export default async function DashboardPage() {
               label: savingsAccount?.name ?? "Conto risparmio",
               value: savingsBalance,
             },
-            { label: "Fondo tasse accantonato", value: -fondoTasse },
+            { label: "Fondo tasse", value: -fondoTasse },
           ]}
         />
         <IndicatorCard
@@ -144,32 +136,17 @@ export default async function DashboardPage() {
           tone="sage"
           breakdown={[
             ...(fondo.carriedOver !== 0
-              ? [{ label: "Residuo anni precedenti", value: fondo.carriedOver }]
+              ? [{ label: "Anni precedenti", value: fondo.carriedOver }]
               : []),
             ...fondoTasseRows,
-            { label: "Imposte già pagate", value: -imposte },
+            { label: "Imposte pagate", value: -imposte },
           ]}
         />
         <IndicatorCard
           title="Liquidità c/c"
           value={liquidita}
           tone="sage"
-          breakdown={[
-            { label: "Somma conti non di risparmio", value: liquidita },
-          ]}
-        />
-        <IndicatorCard
-          title="Tasse da pagare"
-          value={tasseDaPagare}
-          tone="sage"
-          breakdown={taxOverview.taxes.map((t) => ({
-            label: t.estimate
-              ? `${t.year} (stima maturata a oggi)`
-              : t.due === null
-                ? `${t.year} (totale non inserito)`
-                : `Ancora da pagare ${t.year}`,
-            value: t.remaining,
-          }))}
+          breakdown={[{ label: "Conti correnti", value: liquidita }]}
         />
         <IndicatorCard
           title="Patrimonio"
@@ -188,7 +165,7 @@ export default async function DashboardPage() {
             },
             { label: "Fondo pensione", value: patrimonio.pensionFund },
             {
-              label: `di cui valore iniziale (+ versamenti dal ${pensionSince})`,
+              label: "di cui iniziale",
               value: patrimonio.pensionFundBase,
               valueNode: (
                 <EditableAmount
@@ -210,12 +187,27 @@ export default async function DashboardPage() {
           ]}
         />
         <IndicatorCard
+          title="Tasse da pagare"
+          value={tasseDaPagare}
+          tone="sage"
+          variant="alert"
+          breakdown={taxOverview.taxes.map((t) => ({
+            label: t.estimate
+              ? `Stima ${t.year}`
+              : t.due === null
+                ? `${t.year} (da inserire)`
+                : `Residuo ${t.year}`,
+            value: t.remaining,
+          }))}
+        />
+        <IndicatorCard
           title="Disponibilità"
           value={disponibilitaLiquida + patrimonio.total}
           tone="sage"
+          variant="solid"
           breakdown={[
             { label: "Liquida", value: disponibilitaLiquida },
-            { label: "Bloccata (patrimonio)", value: patrimonio.total },
+            { label: "Bloccata", value: patrimonio.total },
           ]}
         />
       </div>

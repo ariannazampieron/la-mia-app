@@ -76,7 +76,7 @@ Nessuna modifica di colonne — sostituita solo la categoria seed `ACQUISTI CASA
 
 ## Home
 
-Sei riquadri (`src/app/dashboard/page.tsx`):
+Sotto il titolo (anche nella pagina Conti) c'è la data dell'ultimo import degli estratti conto, quella scritta a mano in Transazioni (`LastImportNote`). Sei riquadri (`src/app/dashboard/page.tsx`), su due righe: Risparmio, Fondo Tasse, Liquidità c/c; poi Patrimonio, Tasse da pagare (bordo rosso, `variant="alert"`) e Disponibilità (sfondo verde pieno, `variant="solid"`). Le etichette sono brevi e non vanno a capo (troncate se lo spazio non basta).
 
 - **Risparmio** = saldo del conto di risparmio − Fondo Tasse.
 - **Fondo Tasse** — vedi sopra (cumulativo dal 2026).
