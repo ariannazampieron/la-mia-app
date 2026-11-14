@@ -56,48 +56,68 @@ export function TaxYearCard({
         </p>
 
         <dl className="border-border space-y-1.5 border-t pt-3 text-sm">
-          <div className="flex items-center justify-between gap-2">
-            <dt className="text-muted-foreground">
-              Totale da pagare nell&apos;anno
-            </dt>
-            {editing ? (
-              <div className="flex items-center gap-1">
-                <Input
-                  type="number"
-                  step="0.01"
-                  autoFocus
-                  value={draft}
-                  onChange={(e) => setDraft(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleSave()}
-                  className="h-7 w-32 text-right font-mono text-xs"
-                />
-                <button
-                  onClick={handleSave}
-                  disabled={saving}
-                  aria-label="Salva"
+          {tax.estimate ? (
+            <>
+              <Row
+                label="Totale stimato da pagare nell'anno"
+                value={tax.due ?? 0}
+              />
+              {tax.estimate.map((line) => (
+                <div
+                  key={line.label}
+                  className="text-muted-foreground flex items-center justify-between gap-2 pl-3 text-xs"
                 >
-                  {saving ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <Check className="text-success h-3.5 w-3.5" />
-                  )}
+                  <dt>{line.label}</dt>
+                  <dd className="font-mono tabular-nums">
+                    {currencyFormatter.format(line.value)}
+                  </dd>
+                </div>
+              ))}
+            </>
+          ) : (
+            <div className="flex items-center justify-between gap-2">
+              <dt className="text-muted-foreground">
+                Totale da pagare nell&apos;anno
+              </dt>
+              {editing ? (
+                <div className="flex items-center gap-1">
+                  <Input
+                    type="number"
+                    step="0.01"
+                    autoFocus
+                    value={draft}
+                    onChange={(e) => setDraft(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleSave()}
+                    className="h-7 w-32 text-right font-mono text-xs"
+                  />
+                  <button
+                    onClick={handleSave}
+                    disabled={saving}
+                    aria-label="Salva"
+                  >
+                    {saving ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Check className="text-success h-3.5 w-3.5" />
+                    )}
+                  </button>
+                </div>
+              ) : (
+                <button
+                  className="flex items-center gap-1.5 font-mono font-medium tabular-nums"
+                  onClick={() => {
+                    setDraft(tax.due === null ? "" : String(tax.due));
+                    setEditing(true);
+                  }}
+                >
+                  {tax.due === null
+                    ? "Da inserire"
+                    : currencyFormatter.format(tax.due)}
+                  <Pencil className="h-3 w-3 opacity-50" />
                 </button>
-              </div>
-            ) : (
-              <button
-                className="flex items-center gap-1.5 font-mono font-medium tabular-nums"
-                onClick={() => {
-                  setDraft(tax.due === null ? "" : String(tax.due));
-                  setEditing(true);
-                }}
-              >
-                {tax.due === null
-                  ? "Da inserire"
-                  : currencyFormatter.format(tax.due)}
-                <Pencil className="h-3 w-3 opacity-50" />
-              </button>
-            )}
-          </div>
+              )}
+            </div>
+          )}
           <Row label="Già pagato" value={-tax.paid} />
           <Row label="Coperto dal fondo tasse" value={tax.covered} />
         </dl>

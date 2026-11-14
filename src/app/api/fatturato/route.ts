@@ -8,8 +8,16 @@ import {
   apiError,
 } from "@/lib/api-utils";
 import { RATE_LIMITS } from "@/lib/rate-limit";
-import { getFondoTasse, getImposteAnnuali } from "@/lib/finance/calculations";
+import {
+  getFatturatoAnnuale,
+  getFondoTasse,
+  getImposteAnnuali,
+} from "@/lib/finance/calculations";
 import { computeTaxCoverage } from "@/lib/finance/taxes";
+import {
+  estimateNextYearTaxes,
+  TAX_YEAR_PARAMS,
+} from "@/lib/finance/tax-estimate";
 
 const CLIENT_PREFIX = "Clienti_";
 
@@ -29,49 +37,56 @@ export async function GET(req: Request) {
   // Taxes: the current calendar year and the next one, regardless of the year shown.
   const taxYears = [new Date().getFullYear(), new Date().getFullYear() + 1];
 
-  const [clientCategories, revenueRows, dueRows, fund, ...paid] =
-    await Promise.all([
-      db
-        .select({ id: categories.id, name: categories.name })
-        .from(categories)
-        .where(
-          and(
-            eq(categories.userId, userId),
-            eq(categories.isClientRevenueCategory, true)
-          )
-        ),
-      db
-        .select({
-          categoryId: transactions.categoryId,
-          month: sql<number>`extract(month from ${transactions.date})::int`,
-          total: sql<string>`coalesce(sum(${transactions.amount}), 0)`,
-        })
-        .from(transactions)
-        .innerJoin(categories, eq(transactions.categoryId, categories.id))
-        .where(
-          and(
-            eq(transactions.userId, userId),
-            eq(transactions.type, "income"),
-            eq(categories.isClientRevenueCategory, true),
-            sql`extract(year from ${transactions.date}) = ${year}`
-          )
+  const [
+    currentYearRevenue,
+    clientCategories,
+    revenueRows,
+    dueRows,
+    fund,
+    ...paid
+  ] = await Promise.all([
+    getFatturatoAnnuale(userId, taxYears[0]),
+    db
+      .select({ id: categories.id, name: categories.name })
+      .from(categories)
+      .where(
+        and(
+          eq(categories.userId, userId),
+          eq(categories.isClientRevenueCategory, true)
         )
-        .groupBy(
-          transactions.categoryId,
-          sql`extract(month from ${transactions.date})`
-        ),
-      db
-        .select({ year: taxDueAmounts.year, amount: taxDueAmounts.amount })
-        .from(taxDueAmounts)
-        .where(
-          and(
-            eq(taxDueAmounts.userId, userId),
-            inArray(taxDueAmounts.year, taxYears)
-          )
-        ),
-      getFondoTasse(userId, taxYears[0]),
-      ...taxYears.map((y) => getImposteAnnuali(userId, y)),
-    ]);
+      ),
+    db
+      .select({
+        categoryId: transactions.categoryId,
+        month: sql<number>`extract(month from ${transactions.date})::int`,
+        total: sql<string>`coalesce(sum(${transactions.amount}), 0)`,
+      })
+      .from(transactions)
+      .innerJoin(categories, eq(transactions.categoryId, categories.id))
+      .where(
+        and(
+          eq(transactions.userId, userId),
+          eq(transactions.type, "income"),
+          eq(categories.isClientRevenueCategory, true),
+          sql`extract(year from ${transactions.date}) = ${year}`
+        )
+      )
+      .groupBy(
+        transactions.categoryId,
+        sql`extract(month from ${transactions.date})`
+      ),
+    db
+      .select({ year: taxDueAmounts.year, amount: taxDueAmounts.amount })
+      .from(taxDueAmounts)
+      .where(
+        and(
+          eq(taxDueAmounts.userId, userId),
+          inArray(taxDueAmounts.year, taxYears)
+        )
+      ),
+    getFondoTasse(userId, taxYears[0]),
+    ...taxYears.map((y) => getImposteAnnuali(userId, y)),
+  ]);
 
   const months = Array.from({ length: 12 }, () => 0);
   const byCategory = new Map<string, number>();
@@ -95,14 +110,31 @@ export async function GET(req: Request) {
     .sort((a, b) => b.total - a.total);
 
   const dueByYear = new Map(dueRows.map((r) => [r.year, Number(r.amount)]));
-  const taxes = computeTaxCoverage(
-    fund,
-    taxYears.map((y, i) => ({
-      year: y,
-      due: dueByYear.get(y) ?? null,
-      paid: paid[i],
-    }))
-  );
+  // Next year's taxes are estimated from this year's revenue when its parameters are known;
+  // otherwise (and always for the current year) the total due is the one entered by hand.
+  const params = TAX_YEAR_PARAMS[taxYears[0]];
+  const estimate = params
+    ? estimateNextYearTaxes(currentYearRevenue, taxYears[0], params)
+    : null;
+  const taxes = computeTaxCoverage(fund, [
+    {
+      year: taxYears[0],
+      due: dueByYear.get(taxYears[0]) ?? null,
+      paid: paid[0],
+    },
+    estimate
+      ? {
+          year: taxYears[1],
+          due: estimate.total,
+          paid: paid[1],
+          estimate: estimate.lines,
+        }
+      : {
+          year: taxYears[1],
+          due: dueByYear.get(taxYears[1]) ?? null,
+          paid: paid[1],
+        },
+  ]);
 
   return apiResponse({ year, months, total, clients, fondoTasse: fund, taxes });
 }

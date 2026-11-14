@@ -116,6 +116,9 @@ export default async function DashboardPage() {
           value={fondoTasse}
           tone="sage"
           breakdown={[
+            ...(fondo.carriedOver !== 0
+              ? [{ label: "Residuo anni precedenti", value: fondo.carriedOver }]
+              : []),
             ...fondoTasseRows,
             { label: "Imposte già pagate", value: -imposte },
           ]}

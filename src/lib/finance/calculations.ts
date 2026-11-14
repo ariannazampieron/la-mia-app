@@ -77,6 +77,9 @@ export async function getImposteAnnuali(
   return Number(row?.total ?? 0);
 }
 
+/** First year the tax fund is tracked: from then on, what's set aside and not paid carries over. */
+const TAX_FUND_START_YEAR = 2026;
+
 export interface FondoTasseBreakdown {
   /** Known provision for the months before a regime change (0 in a normal year). */
   fixedAmount: number;
@@ -85,17 +88,13 @@ export interface FondoTasseBreakdown {
   /** Revenue the 23% applies to (whole year, or from the month after a regime change). */
   taxedRevenue: number;
   imposte: number;
+  /** Fund left over from previous years (set aside minus taxes paid), since TAX_FUND_START_YEAR. */
+  carriedOver: number;
   total: number;
 }
 
-/**
- * Fondo Tasse = 23% del fatturato - imposte già pagate nell'anno; negli anni con cambio
- * di regime il 23% vale solo dal mese successivo e prima si usa l'importo fisso.
- */
-export async function getFondoTasseBreakdown(
-  userId: string,
-  year: number
-): Promise<FondoTasseBreakdown> {
+/** One year's provision minus that year's taxes paid, without anything carried over. */
+async function getYearTaxFund(userId: string, year: number) {
   const change = TAX_REGIME_CHANGES[year];
   const [taxedRevenue, imposte] = await Promise.all([
     getFatturatoAnnuale(userId, year, change ? change.fixedUntilMonth + 1 : 1),
@@ -107,7 +106,36 @@ export async function getFondoTasseBreakdown(
     fixedUntilMonth: change?.fixedUntilMonth ?? null,
     taxedRevenue,
     imposte,
-    total: fixedAmount + taxedRevenue * TAX_RATE - imposte,
+    net: fixedAmount + taxedRevenue * TAX_RATE - imposte,
+  };
+}
+
+/**
+ * Fondo Tasse = 23% del fatturato - imposte già pagate nell'anno, più quanto avanzato dagli
+ * anni precedenti; negli anni con cambio di regime il 23% vale solo dal mese successivo e
+ * prima si usa l'importo fisso.
+ */
+export async function getFondoTasseBreakdown(
+  userId: string,
+  year: number
+): Promise<FondoTasseBreakdown> {
+  const previousYears = Array.from(
+    { length: Math.max(year - TAX_FUND_START_YEAR, 0) },
+    (_, i) => TAX_FUND_START_YEAR + i
+  );
+  // One small query pair per year since the start — a handful of years, not driven by row count.
+  const [current, ...previous] = await Promise.all([
+    getYearTaxFund(userId, year),
+    ...previousYears.map((y) => getYearTaxFund(userId, y)),
+  ]);
+  const carriedOver = previous.reduce((sum, p) => sum + p.net, 0);
+  return {
+    fixedAmount: current.fixedAmount,
+    fixedUntilMonth: current.fixedUntilMonth,
+    taxedRevenue: current.taxedRevenue,
+    imposte: current.imposte,
+    carriedOver,
+    total: current.net + carriedOver,
   };
 }
 

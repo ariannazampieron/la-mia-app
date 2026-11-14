@@ -4,6 +4,8 @@ export interface TaxYearInput {
   due: number | null;
   /** Taxes already paid in the year ("IMPOSTE" transactions). */
   paid: number;
+  /** Set when `due` is estimated from the revenue instead of entered by hand. */
+  estimate?: { label: string; value: number }[];
 }
 
 export interface TaxYearCoverage extends TaxYearInput {
