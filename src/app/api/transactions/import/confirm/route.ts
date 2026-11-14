@@ -18,6 +18,7 @@ const confirmRowSchema = z.object({
   amount: z.number().positive(),
   type: z.enum(["income", "expense"]),
   categoryId: z.string().uuid().nullable(),
+  isInternalTransfer: z.boolean().default(false),
 });
 
 const confirmSchema = z.object({
@@ -26,7 +27,10 @@ const confirmSchema = z.object({
 });
 
 export async function POST(req: Request) {
-  const limited = await applyRateLimit("transactions-import-confirm", RATE_LIMITS.api);
+  const limited = await applyRateLimit(
+    "transactions-import-confirm",
+    RATE_LIMITS.api
+  );
   if (limited) return limited;
 
   const { session, error } = await requireApiAuth();
@@ -58,6 +62,7 @@ export async function POST(req: Request) {
       description: row.description,
       amount: row.amount.toFixed(2),
       type: row.type,
+      isInternalTransfer: row.isInternalTransfer,
       source: "import" as const,
       importBatchId,
     }))

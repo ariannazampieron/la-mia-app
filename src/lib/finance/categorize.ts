@@ -66,7 +66,8 @@ export function matchCategoryFromHistory(
     const historyNormalized = normalizeDescription(candidate.description);
     if (
       historyNormalized.length >= 4 &&
-      (normalized.includes(historyNormalized) || historyNormalized.includes(normalized))
+      (normalized.includes(historyNormalized) ||
+        historyNormalized.includes(normalized))
     ) {
       return {
         categoryId: candidate.categoryId,
@@ -83,25 +84,44 @@ export async function suggestCategoryViaAI(
   description: string,
   availableCategories: { id: string; name: string }[]
 ): Promise<CategorySuggestion | null> {
-  if (!process.env.OPENROUTER_API_KEY || availableCategories.length === 0) return null;
+  if (!process.env.OPENROUTER_API_KEY || availableCategories.length === 0)
+    return null;
 
   try {
-    const openrouter = createOpenRouter({ apiKey: process.env.OPENROUTER_API_KEY });
-    const model = openrouter(process.env.OPENROUTER_MODEL || "openai/gpt-4.1-mini");
+    const openrouter = createOpenRouter({
+      apiKey: process.env.OPENROUTER_API_KEY,
+    });
+    const model = openrouter(
+      process.env.OPENROUTER_MODEL || "openai/gpt-4.1-mini"
+    );
 
     const { object } = await generateObject({
       model,
       schema: z.object({ categoryName: z.string().nullable() }),
       prompt: `Descrizione transazione: "${description}". Categorie disponibili: ${availableCategories
         .map((c) => c.name)
-        .join(", ")}. Scegli il nome esatto della categoria più probabile da questo elenco, oppure null se nessuna è ragionevole.`,
+        .join(
+          ", "
+        )}. Scegli il nome esatto della categoria più probabile da questo elenco, oppure null se nessuna è ragionevole.`,
     });
 
-    const match = availableCategories.find((c) => c.name === object.categoryName);
+    const match = availableCategories.find(
+      (c) => c.name === object.categoryName
+    );
     if (!match) return null;
 
     return { categoryId: match.id, categoryName: match.name, source: "ai" };
   } catch {
     return null;
   }
+}
+
+// Transfers between own accounts and cash withdrawals (moved to the "Contanti" account)
+// are not real income/expenses: they're imported uncategorized and excluded from the Rendiconto.
+// "Trasferimento avviato dall'utente" is how PayPal names a withdrawal to the bank account.
+const INTERNAL_MOVEMENT_PATTERN =
+  /giroconto|ritiro\s+contanti|prelievo|prelevamento|trasferimento avviato dall.utente/i;
+
+export function isInternalMovement(description: string): boolean {
+  return INTERNAL_MOVEMENT_PATTERN.test(description);
 }

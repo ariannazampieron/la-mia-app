@@ -54,12 +54,16 @@ export function ImportDialog({
   const [accountId, setAccountId] = useState<string>(accounts[0]?.id ?? "");
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
-  const [errorRows, setErrorRows] = useState<{ rowNumber: number; message: string }[] | null>(
-    null
-  );
+  const [errorRows, setErrorRows] = useState<
+    { rowNumber: number; message: string }[] | null
+  >(null);
   const [previewRows, setPreviewRows] = useState<PreviewRow[]>([]);
-  const [availableCategories, setAvailableCategories] = useState<CategoryOption[]>([]);
-  const [includedDuplicates, setIncludedDuplicates] = useState<Set<number>>(new Set());
+  const [availableCategories, setAvailableCategories] = useState<
+    CategoryOption[]
+  >([]);
+  const [includedDuplicates, setIncludedDuplicates] = useState<Set<number>>(
+    new Set()
+  );
   const [submitting, setSubmitting] = useState(false);
 
   function reset() {
@@ -110,9 +114,18 @@ export function ImportDialog({
               ...r,
               categoryId,
               categoryName:
-                availableCategories.find((c) => c.id === categoryId)?.name ?? null,
+                availableCategories.find((c) => c.id === categoryId)?.name ??
+                null,
             }
           : r
+      )
+    );
+  }
+
+  function toggleRowInternal(rowNumber: number, isInternalTransfer: boolean) {
+    setPreviewRows((prev) =>
+      prev.map((r) =>
+        r.rowNumber === rowNumber ? { ...r, isInternalTransfer } : r
       )
     );
   }
@@ -139,6 +152,7 @@ export function ImportDialog({
             amount: r.amount,
             type: r.type,
             categoryId: r.categoryId,
+            isInternalTransfer: r.isInternalTransfer,
           })),
         }),
       });
@@ -214,12 +228,12 @@ export function ImportDialog({
             </div>
 
             {errorRows && (
-              <div className="space-y-2 rounded-lg border border-destructive/20 bg-destructive/5 p-4 text-sm">
-                <div className="flex items-center gap-2 font-medium text-destructive">
+              <div className="border-destructive/20 bg-destructive/5 space-y-2 rounded-lg border p-4 text-sm">
+                <div className="text-destructive flex items-center gap-2 font-medium">
                   <AlertCircle className="h-4 w-4" />
                   Import bloccato — correggi queste righe e riprova
                 </div>
-                <ul className="max-h-40 space-y-1 overflow-y-auto text-destructive/90">
+                <ul className="text-destructive/90 max-h-40 space-y-1 overflow-y-auto">
                   {errorRows.map((e) => (
                     <li key={e.rowNumber}>
                       Riga {e.rowNumber}: {e.message}
@@ -245,7 +259,7 @@ export function ImportDialog({
                 Nuove transazioni ({newRows.length})
               </h3>
               {newRows.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
+                <p className="text-muted-foreground text-sm">
                   Nessuna nuova transazione — tutte le righe sono duplicati.
                 </p>
               ) : (
@@ -256,6 +270,7 @@ export function ImportDialog({
                       row={row}
                       categories={availableCategories}
                       onCategoryChange={updateRowCategory}
+                      onInternalChange={toggleRowInternal}
                     />
                   ))}
                 </div>
@@ -264,19 +279,19 @@ export function ImportDialog({
 
             {duplicateRows.length > 0 && (
               <div>
-                <h3 className="mb-2 flex items-center gap-2 text-sm font-medium text-warning">
+                <h3 className="text-warning mb-2 flex items-center gap-2 text-sm font-medium">
                   <Copy className="h-3.5 w-3.5" />
                   Possibili duplicati ({duplicateRows.length})
                 </h3>
-                <p className="mb-2 text-xs text-muted-foreground">
-                  Già presenti con stessa data, importo e descrizione. Seleziona quelli
-                  che vuoi importare comunque.
+                <p className="text-muted-foreground mb-2 text-xs">
+                  Già presenti con stessa data, importo e descrizione. Seleziona
+                  quelli che vuoi importare comunque.
                 </p>
                 <div className="max-h-56 space-y-2 overflow-y-auto">
                   {duplicateRows.map((row) => (
                     <div
                       key={row.rowNumber}
-                      className="flex items-center gap-3 overflow-hidden rounded-md border border-warning/20 bg-warning/5 px-3 py-2"
+                      className="border-warning/20 bg-warning/5 flex items-center gap-3 overflow-hidden rounded-md border px-3 py-2"
                     >
                       <Checkbox
                         checked={includedDuplicates.has(row.rowNumber)}
@@ -291,7 +306,9 @@ export function ImportDialog({
                       />
                       <div className="min-w-0 flex-1 overflow-hidden">
                         <p className="truncate text-sm">{row.description}</p>
-                        <p className="text-xs text-muted-foreground">{row.date}</p>
+                        <p className="text-muted-foreground text-xs">
+                          {row.date}
+                        </p>
                       </div>
                       <span className="shrink-0 font-mono text-sm tabular-nums">
                         {currencyFormatter.format(row.amount)}
@@ -302,8 +319,12 @@ export function ImportDialog({
               </div>
             )}
 
-            <DialogFooter className="sticky bottom-0 -mx-6 -mb-6 border-t border-border bg-background px-6 py-4">
-              <Button variant="ghost" onClick={() => setStep("select")} disabled={submitting}>
+            <DialogFooter className="border-border bg-background sticky bottom-0 -mx-6 -mb-6 border-t px-6 py-4">
+              <Button
+                variant="ghost"
+                onClick={() => setStep("select")}
+                disabled={submitting}
+              >
                 Indietro
               </Button>
               <Button onClick={handleConfirm} disabled={submitting}>
@@ -322,18 +343,20 @@ function PreviewRowItem({
   row,
   categories,
   onCategoryChange,
+  onInternalChange,
 }: {
   row: PreviewRow;
   categories: CategoryOption[];
   onCategoryChange: (rowNumber: number, categoryId: string) => void;
+  onInternalChange: (rowNumber: number, isInternalTransfer: boolean) => void;
 }) {
   const relevantCategories = categories.filter((c) => c.type === row.type);
 
   return (
-    <div className="flex items-center gap-3 overflow-hidden rounded-md border border-border px-3 py-2">
+    <div className="border-border flex items-center gap-3 overflow-hidden rounded-md border px-3 py-2">
       <div className="min-w-0 flex-1 overflow-hidden">
         <p className="truncate text-sm">{row.description}</p>
-        <p className="text-xs text-muted-foreground">{row.date}</p>
+        <p className="text-muted-foreground text-xs">{row.date}</p>
       </div>
       <span
         className={`shrink-0 font-mono text-sm tabular-nums ${
@@ -358,7 +381,16 @@ function PreviewRowItem({
           ))}
         </SelectContent>
       </Select>
-      {!row.categoryId && (
+      <label className="text-muted-foreground flex shrink-0 items-center gap-1.5 text-xs">
+        <Checkbox
+          checked={row.isInternalTransfer}
+          onCheckedChange={(checked) =>
+            onInternalChange(row.rowNumber, checked === true)
+          }
+        />
+        Interno
+      </label>
+      {!row.categoryId && !row.isInternalTransfer && (
         <Badge variant="warning" className="shrink-0">
           Da categorizzare
         </Badge>

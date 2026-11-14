@@ -1,13 +1,22 @@
 import { db } from "@/lib/db";
 import { financeAccounts, categories, transactions } from "@/lib/schema";
 import { and, eq, gte, lte } from "drizzle-orm";
-import { applyRateLimit, requireApiAuth, apiResponse, apiError } from "@/lib/api-utils";
+import {
+  applyRateLimit,
+  requireApiAuth,
+  apiResponse,
+  apiError,
+} from "@/lib/api-utils";
 import { RATE_LIMITS } from "@/lib/rate-limit";
-import { parseStatementFile, type ParsedRow } from "@/lib/finance/import-parser";
+import {
+  parseStatementFile,
+  type ParsedRow,
+} from "@/lib/finance/import-parser";
 import {
   fetchHistoryCandidates,
   matchCategoryFromHistory,
   suggestCategoryViaAI,
+  isInternalMovement,
   type HistoryCandidate,
 } from "@/lib/finance/categorize";
 
@@ -21,10 +30,14 @@ export interface PreviewRow {
   categoryName: string | null;
   categorySource: "csv" | "history" | "ai" | null;
   isDuplicate: boolean;
+  isInternalTransfer: boolean;
 }
 
 export async function POST(req: Request) {
-  const limited = await applyRateLimit("transactions-import-preview", RATE_LIMITS.api);
+  const limited = await applyRateLimit(
+    "transactions-import-preview",
+    RATE_LIMITS.api
+  );
   if (limited) return limited;
 
   const { session, error } = await requireApiAuth();
@@ -43,7 +56,10 @@ export async function POST(req: Request) {
     .select({ id: financeAccounts.id })
     .from(financeAccounts)
     .where(
-      and(eq(financeAccounts.id, accountId), eq(financeAccounts.userId, session.user.id))
+      and(
+        eq(financeAccounts.id, accountId),
+        eq(financeAccounts.userId, session.user.id)
+      )
     )
     .limit(1);
   if (!account) return apiError("Conto non trovato", 404);
@@ -52,9 +68,13 @@ export async function POST(req: Request) {
   const { rows, errors } = parseStatementFile(buffer);
 
   if (errors.length > 0) {
-    return apiError("Il file contiene righe non valide. Correggi e riprova.", 422, {
-      rows: errors,
-    });
+    return apiError(
+      "Il file contiene righe non valide. Correggi e riprova.",
+      422,
+      {
+        rows: errors,
+      }
+    );
   }
   if (rows.length === 0) {
     return apiError("Nessuna riga da importare nel file.", 422);
@@ -83,7 +103,8 @@ export async function POST(req: Request) {
     );
   const existingKeys = new Set(
     existingInRange.map(
-      (e) => `${e.date}|${Number(e.amount).toFixed(2)}|${e.description.trim().toLowerCase()}`
+      (e) =>
+        `${e.date}|${Number(e.amount).toFixed(2)}|${e.description.trim().toLowerCase()}`
     )
   );
 
@@ -99,13 +120,16 @@ export async function POST(req: Request) {
     const key = `${row.date}|${row.amount.toFixed(2)}|${row.description.trim().toLowerCase()}`;
     const isDuplicate = existingKeys.has(key);
 
+    const isInternalTransfer = isInternalMovement(row.description);
     let categoryId: string | null = null;
     let categoryName: string | null = null;
     let categorySource: PreviewRow["categorySource"] = null;
 
-    if (row.categoryName) {
+    if (row.categoryName && !isInternalTransfer) {
       const matched = userCategories.find(
-        (c) => c.name.toLowerCase() === row.categoryName!.toLowerCase() && c.type === row.type
+        (c) =>
+          c.name.toLowerCase() === row.categoryName!.toLowerCase() &&
+          c.type === row.type
       );
       if (matched) {
         categoryId = matched.id;
@@ -114,7 +138,7 @@ export async function POST(req: Request) {
       }
     }
 
-    if (!categoryId) {
+    if (!categoryId && !isInternalTransfer) {
       const history = historyByType.get(row.type) ?? [];
       const historyMatch = matchCategoryFromHistory(history, row.description);
       if (historyMatch) {
@@ -144,6 +168,7 @@ export async function POST(req: Request) {
       categoryName,
       categorySource,
       isDuplicate,
+      isInternalTransfer,
     });
   }
 
