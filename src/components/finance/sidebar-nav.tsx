@@ -4,12 +4,28 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { Home, ArrowLeftRight, Table2, Landmark, House } from "lucide-react";
+import {
+  Home,
+  ArrowLeftRight,
+  Table2,
+  Landmark,
+  House,
+  ChartColumn,
+} from "lucide-react";
 
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Home", icon: Home },
-  { href: "/dashboard/transactions", label: "Transazioni", icon: ArrowLeftRight },
+  {
+    href: "/dashboard/transactions",
+    label: "Transazioni",
+    icon: ArrowLeftRight,
+  },
   { href: "/dashboard/budget", label: "Budget", icon: Table2 },
+  {
+    href: "/dashboard/fatturato",
+    label: "Fatturato e imposte",
+    icon: ChartColumn,
+  },
   { href: "/dashboard/casa", label: "Casa", icon: House },
   { href: "/dashboard/accounts", label: "Conti", icon: Landmark },
 ];
@@ -18,7 +34,7 @@ export function SidebarNav() {
   const pathname = usePathname();
 
   return (
-    <aside className="hidden md:flex w-64 shrink-0 flex-col border-r border-sidebar-border bg-sidebar px-4 py-6">
+    <aside className="border-sidebar-border bg-sidebar hidden w-64 shrink-0 flex-col border-r px-4 py-6 md:flex">
       <div className="flex items-center gap-3 px-2 pb-8">
         <Image
           src="/logo.png"
@@ -28,10 +44,10 @@ export function SidebarNav() {
           className="shrink-0"
         />
         <div className="leading-tight">
-          <span className="block text-[10px] font-bold tracking-wider text-muted-foreground uppercase">
+          <span className="text-muted-foreground block text-[10px] font-bold tracking-wider uppercase">
             Arianna Zampieron
           </span>
-          <span className="block text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">
+          <span className="text-muted-foreground block text-[10px] font-semibold tracking-wider uppercase">
             Finance Tracker
           </span>
         </div>

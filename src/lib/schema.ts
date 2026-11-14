@@ -275,6 +275,28 @@ export const budgetOpeningBalance = pgTable(
   ]
 );
 
+/** Total taxes due in a calendar year (entered by hand for now), used by "Fatturato e imposte". */
+export const taxDueAmounts = pgTable(
+  "tax_due_amounts",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    year: integer("year").notNull(),
+    amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (t) => [
+    index("tax_due_amounts_user_idx").on(t.userId),
+    unique("tax_due_amounts_unique_year").on(t.userId, t.year),
+  ]
+);
+
 /** One row per user for app-level preferences (e.g. the manually tracked last statement import date). */
 export const userSettings = pgTable("user_settings", {
   userId: text("user_id")

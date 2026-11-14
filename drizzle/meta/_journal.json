@@ -43,6 +43,13 @@
       "when": 1794682144190,
       "tag": "0005_complex_raza",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1794684802885,
+      "tag": "0006_lean_bill_hollister",
+      "breakpoints": true
     }
   ]
 }
