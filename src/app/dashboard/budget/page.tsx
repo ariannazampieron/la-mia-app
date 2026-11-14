@@ -1,16 +1,19 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Loader2, AlertCircle, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   ContoEconomicoTable,
+  MONTH_LABELS,
   type ContoEconomicoCategory,
   type MonthBalance,
 } from "@/components/finance/conto-economico-table";
 import { BudgetImportDialog } from "@/components/finance/budget-import-dialog";
+import { buildReview } from "@/lib/finance/review";
+import { cn } from "@/lib/utils";
 
 interface BudgetEntry {
   categoryId: string;
@@ -22,9 +25,16 @@ interface ActualRow {
   month: number;
   total: string;
 }
+interface ReviewEntry {
+  categoryId: string;
+  month: number;
+  amount: string;
+}
 
 export default function BudgetPage() {
   const [year, setYear] = useState(() => new Date().getFullYear());
+  const [tab, setTab] = useState("budget");
+  const [compareWith, setCompareWith] = useState<"budget" | "review">("budget");
   const [categories, setCategories] = useState<ContoEconomicoCategory[]>([]);
 
   const [plannedAmounts, setPlannedAmounts] = useState<Map<string, number>>(
@@ -37,19 +47,30 @@ export default function BudgetPage() {
   );
   const [actualBalances, setActualBalances] = useState<MonthBalance[]>([]);
 
-  const [loading, setLoading] = useState(true);
+  const [reviewEntries, setReviewEntries] = useState<Map<string, number>>(
+    new Map()
+  );
+  const [closedThroughMonth, setClosedThroughMonth] = useState(0);
+
+  const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const loadAll = useCallback(async () => {
-    setLoading(true);
     setError(null);
     try {
-      const [categoriesRes, budgetRes, actualsRes] = await Promise.all([
-        fetch("/api/categories"),
-        fetch(`/api/budget?year=${year}`),
-        fetch(`/api/budget/actuals?year=${year}`),
-      ]);
-      if (!categoriesRes.ok || !budgetRes.ok || !actualsRes.ok) {
+      const [categoriesRes, budgetRes, actualsRes, reviewRes] =
+        await Promise.all([
+          fetch("/api/categories"),
+          fetch(`/api/budget?year=${year}`),
+          fetch(`/api/budget/actuals?year=${year}`),
+          fetch(`/api/budget/review?year=${year}`),
+        ]);
+      if (
+        !categoriesRes.ok ||
+        !budgetRes.ok ||
+        !actualsRes.ok ||
+        !reviewRes.ok
+      ) {
         throw new Error("Impossibile caricare budget e rendiconto");
       }
       const categoriesBody = await categoriesRes.json();
@@ -57,6 +78,8 @@ export default function BudgetPage() {
         await budgetRes.json();
       const actualsBody: { actuals: ActualRow[]; balances: MonthBalance[] } =
         await actualsRes.json();
+      const reviewBody: { entries: ReviewEntry[]; closedThroughMonth: number } =
+        await reviewRes.json();
 
       setCategories(categoriesBody.categories);
       setPlannedAmounts(
@@ -76,16 +99,47 @@ export default function BudgetPage() {
         )
       );
       setActualBalances(actualsBody.balances);
+      setReviewEntries(
+        new Map(
+          reviewBody.entries.map((e) => [
+            `${e.categoryId}-${e.month}`,
+            Number(e.amount),
+          ])
+        )
+      );
+      setClosedThroughMonth(reviewBody.closedThroughMonth);
+      setLoaded(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Errore imprevisto");
-    } finally {
-      setLoading(false);
     }
   }, [year]);
 
   useEffect(() => {
+    setLoaded(false);
     loadAll();
   }, [loadAll]);
+
+  const review = useMemo(
+    () =>
+      buildReview({
+        categories,
+        planned: plannedAmounts,
+        actual: actualAmounts,
+        reviewEntries,
+        closedThroughMonth,
+        plannedBalances,
+        actualBalances,
+      }),
+    [
+      categories,
+      plannedAmounts,
+      actualAmounts,
+      reviewEntries,
+      closedThroughMonth,
+      plannedBalances,
+      actualBalances,
+    ]
+  );
 
   async function handlePlannedAmountChange(
     categoryId: string,
@@ -108,6 +162,27 @@ export default function BudgetPage() {
     }
   }
 
+  async function handleReviewAmountChange(
+    categoryId: string,
+    month: number,
+    value: number
+  ) {
+    setReviewEntries((prev) =>
+      new Map(prev).set(`${categoryId}-${month}`, value)
+    );
+    try {
+      const res = await fetch("/api/budget/review", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ year, month, categoryId, amount: value }),
+      });
+      if (!res.ok) throw new Error();
+    } catch {
+      toast.error("Impossibile salvare la review per questa cella");
+      await loadAll();
+    }
+  }
+
   async function handleOpeningBalanceChange(month: number, value: number) {
     try {
       const res = await fetch("/api/budget/opening-balance", {
@@ -121,6 +196,13 @@ export default function BudgetPage() {
       toast.error("Impossibile salvare il saldo di apertura");
     }
   }
+
+  const closedLabel =
+    closedThroughMonth === 0
+      ? "nessun mese chiuso"
+      : closedThroughMonth === 12
+        ? "tutto l'anno chiuso"
+        : `dati reali fino a ${MONTH_LABELS[closedThroughMonth - 1].toLowerCase()}`;
 
   return (
     <div className="space-y-6">
@@ -171,17 +253,18 @@ export default function BudgetPage() {
         </div>
       )}
 
-      {loading && !error && (
+      {!loaded && !error && (
         <div className="text-muted-foreground flex items-center justify-center py-16">
           <Loader2 className="h-5 w-5 animate-spin" />
         </div>
       )}
 
-      {!loading && !error && (
-        <Tabs defaultValue="budget">
+      {loaded && (
+        <Tabs value={tab} onValueChange={setTab}>
           <TabsList>
             <TabsTrigger value="budget">Budget</TabsTrigger>
             <TabsTrigger value="rendiconto">Rendiconto</TabsTrigger>
+            <TabsTrigger value="review">Review</TabsTrigger>
           </TabsList>
           <TabsContent value="budget" className="mt-4">
             <ContoEconomicoTable
@@ -193,14 +276,62 @@ export default function BudgetPage() {
               onOpeningBalanceChange={handleOpeningBalanceChange}
             />
           </TabsContent>
-          <TabsContent value="rendiconto" className="mt-4">
+          <TabsContent value="rendiconto" className="mt-4 space-y-3">
+            <div className="flex flex-wrap items-center gap-2 text-sm">
+              <span className="text-muted-foreground">Confronta con:</span>
+              <div className="border-border inline-flex rounded-full border p-0.5">
+                {(
+                  [
+                    ["budget", "Budget annuale"],
+                    ["review", "Review"],
+                  ] as const
+                ).map(([value, label]) => (
+                  <button
+                    key={value}
+                    onClick={() => setCompareWith(value)}
+                    className={cn(
+                      "rounded-full px-3 py-1 text-xs font-medium transition-colors",
+                      compareWith === value
+                        ? "bg-primary text-primary-foreground"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
             <ContoEconomicoTable
               mode="rendiconto"
               categories={categories}
               amounts={actualAmounts}
-              compareAmounts={plannedAmounts}
+              compareAmounts={
+                compareWith === "budget" ? plannedAmounts : review.amounts
+              }
               balances={actualBalances}
+              compareBalances={
+                compareWith === "budget" ? plannedBalances : review.balances
+              }
+              compareLabel={compareWith === "budget" ? "Budget" : "Review"}
+            />
+          </TabsContent>
+          <TabsContent value="review" className="mt-4 space-y-3">
+            <p className="text-muted-foreground text-sm">
+              Mesi chiusi con i dati reali ({closedLabel}, in base
+              all&apos;ultimo import in Transazioni); per i mesi aperti parte
+              dal budget e puoi modificare le celle per rimodulare la
+              previsione.
+            </p>
+            <ContoEconomicoTable
+              mode="review"
+              categories={categories}
+              amounts={review.amounts}
+              compareAmounts={plannedAmounts}
+              balances={review.balances}
               compareBalances={plannedBalances}
+              compareLabel="Budget"
+              closedThroughMonth={closedThroughMonth}
+              onAmountChange={handleReviewAmountChange}
             />
           </TabsContent>
         </Tabs>

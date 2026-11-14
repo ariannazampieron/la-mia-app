@@ -223,6 +223,40 @@ export const budgetEntries = pgTable(
   ]
 );
 
+/**
+ * "Review" budget: the planned amounts re-forecast during the year for months not closed yet.
+ * Closed months take the actuals; a missing row falls back to the original budget entry.
+ */
+export const budgetReviewEntries = pgTable(
+  "budget_review_entries",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    year: integer("year").notNull(),
+    month: integer("month").notNull(),
+    categoryId: uuid("category_id")
+      .notNull()
+      .references(() => categories.id, { onDelete: "cascade" }),
+    amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (t) => [
+    index("budget_review_entries_user_year_idx").on(t.userId, t.year),
+    unique("budget_review_entries_unique_cell").on(
+      t.userId,
+      t.year,
+      t.month,
+      t.categoryId
+    ),
+  ]
+);
+
 export const casaManualTotals = pgTable(
   "casa_manual_totals",
   {

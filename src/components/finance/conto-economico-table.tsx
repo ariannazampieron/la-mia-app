@@ -40,6 +40,8 @@ export interface MonthBalance {
   revenueTotal: number;
   costTotal: number;
   cashFlow: number;
+  /** Balance changes that are neither revenue nor cost (transfers, uncategorized rows). */
+  otherMovements: number;
 }
 
 const currencyFormatter = new Intl.NumberFormat("it-IT", {
@@ -70,18 +72,26 @@ export function ContoEconomicoTable({
   compareAmounts,
   balances,
   compareBalances,
+  compareLabel = "Budget",
+  closedThroughMonth = 0,
   onAmountChange,
   onOpeningBalanceChange,
 }: {
-  mode: "budget" | "rendiconto";
+  /** budget: planned, editable; rendiconto: actuals vs a comparison; review: actuals for the
+   *  closed months, editable re-forecast for the open ones, compared with the budget. */
+  mode: "budget" | "rendiconto" | "review";
   categories: ContoEconomicoCategory[];
   /** key: `${categoryId}-${month}` → amount shown in each cell (planned for budget, actual for rendiconto) */
   amounts: Map<string, number>;
-  /** rendiconto only: the planned amount per cell, used to color actual vs plan */
+  /** rendiconto/review: the amount per cell to compare with (budget or review) */
   compareAmounts?: Map<string, number>;
   balances: MonthBalance[];
-  /** rendiconto only: the planned monthly balances, used for the yearly budget/progress columns */
+  /** rendiconto/review: the compared monthly balances, for the yearly comparison columns */
   compareBalances?: MonthBalance[];
+  /** Name of what's compared, in the yearly columns ("Budget anno", "% budget"). */
+  compareLabel?: string;
+  /** review only: months up to this one are closed (actuals, read-only). */
+  closedThroughMonth?: number;
   onAmountChange?: (categoryId: string, month: number, value: number) => void;
   onOpeningBalanceChange?: (month: number, value: number) => void;
 }) {
@@ -95,10 +105,10 @@ export function ContoEconomicoTable({
   const decemberClosing = balanceByMonth.get(12)?.closing ?? 0;
   const januaryOpening = balanceByMonth.get(1)?.opening ?? 0;
 
-  // Budget averages over the full year; rendiconto from January up to the last month
-  // with any data, so months where a category had no spending still count as zero.
+  // Budget and review average over the full year; rendiconto from January up to the last
+  // month with any data, so months where a category had no spending still count as zero.
   const monthsForAverage =
-    mode === "budget"
+    mode !== "rendiconto"
       ? 12
       : Math.max(
           0,
@@ -106,7 +116,10 @@ export function ContoEconomicoTable({
             .filter((b) => b.revenueTotal !== 0 || b.costTotal !== 0)
             .map((b) => b.month)
         );
-  const showBudget = mode === "rendiconto";
+  const showBudget = mode !== "budget";
+  const showOtherMovements =
+    mode !== "budget" &&
+    balances.some((b) => Math.abs(b.otherMovements) >= 0.005);
   const summaryColumns = showBudget ? 4 : 2;
   const plannedYear = (field: "revenueTotal" | "costTotal" | "cashFlow") =>
     (compareBalances ?? []).reduce((sum, b) => sum + b[field], 0);
@@ -119,33 +132,40 @@ export function ContoEconomicoTable({
             <TableHead className="from-accent/60 to-accent/60 bg-card sticky left-0 z-10 min-w-48 bg-linear-to-r">
               —
             </TableHead>
-            {MONTH_LABELS.map((m) => (
+            {MONTH_LABELS.map((m, i) => (
               <TableHead key={m} className="min-w-24 text-right">
                 {m}
+                {mode === "review" && (
+                  <span className="text-muted-foreground block text-[10px] font-normal">
+                    {i + 1 <= closedThroughMonth ? "reale" : "previsione"}
+                  </span>
+                )}
               </TableHead>
             ))}
             <TableHead className="min-w-28 text-right">Totale</TableHead>
             <TableHead className="min-w-28 text-right">
               Media mensile
               <span className="text-muted-foreground block text-[10px] font-normal">
-                {mode === "budget"
-                  ? "su 12 mesi"
-                  : `su ${monthsForAverage} mesi`}
+                {mode === "rendiconto"
+                  ? `su ${monthsForAverage} mesi`
+                  : "su 12 mesi"}
               </span>
             </TableHead>
             {showBudget && (
               <>
                 <TableHead className="min-w-28 text-right">
-                  Budget anno
+                  {compareLabel} anno
                 </TableHead>
-                <TableHead className="min-w-20 text-right">% budget</TableHead>
+                <TableHead className="min-w-20 text-right">
+                  % {compareLabel.toLowerCase()}
+                </TableHead>
               </>
             )}
           </TableRow>
         </TableHeader>
         <TableBody>
           <BalanceRow
-            label="Saldo conto corrente"
+            label="Saldo inizio mese"
             totalValue={januaryOpening}
             values={MONTH_LABELS.map(
               (_, i) => balanceByMonth.get(i + 1)?.opening ?? 0
@@ -164,6 +184,7 @@ export function ContoEconomicoTable({
               compareAmounts={compareAmounts}
               mode={mode}
               monthsForAverage={monthsForAverage}
+              closedThroughMonth={closedThroughMonth}
               onAmountChange={onAmountChange}
             />
           ))}
@@ -193,6 +214,7 @@ export function ContoEconomicoTable({
               compareAmounts={compareAmounts}
               mode={mode}
               monthsForAverage={monthsForAverage}
+              closedThroughMonth={closedThroughMonth}
               onAmountChange={onAmountChange}
             />
           ))}
@@ -225,8 +247,22 @@ export function ContoEconomicoTable({
               (_, i) => balanceByMonth.get(i + 1)?.cashFlow ?? 0
             )}
           />
+          {showOtherMovements && (
+            <BalanceRow
+              label="Altri movimenti (giroconti, non categ.)"
+              totalValue={balances.reduce(
+                (sum, b) => sum + b.otherMovements,
+                0
+              )}
+              values={MONTH_LABELS.map(
+                (_, i) => balanceByMonth.get(i + 1)?.otherMovements ?? 0
+              )}
+              editable={false}
+              extraColumns={summaryColumns - 1}
+            />
+          )}
           <BalanceRow
-            label="Liquidità disponibile fine mese"
+            label="Saldo fine mese"
             totalValue={decemberClosing}
             values={MONTH_LABELS.map(
               (_, i) => balanceByMonth.get(i + 1)?.closing ?? 0
@@ -259,13 +295,15 @@ function CategoryRow({
   compareAmounts,
   mode,
   monthsForAverage,
+  closedThroughMonth,
   onAmountChange,
 }: {
   category: ContoEconomicoCategory;
   amounts: Map<string, number>;
   compareAmounts?: Map<string, number>;
-  mode: "budget" | "rendiconto";
+  mode: "budget" | "rendiconto" | "review";
   monthsForAverage: number;
+  closedThroughMonth: number;
   onAmountChange?: (categoryId: string, month: number, value: number) => void;
 }) {
   const [saving, setSaving] = useState<number | null>(null);
@@ -293,7 +331,10 @@ function CategoryRow({
         const key = `${category.id}-${month}`;
         const value = amounts.get(key) ?? 0;
 
-        if (mode === "budget") {
+        const editable =
+          mode === "budget" ||
+          (mode === "review" && month > closedThroughMonth);
+        if (editable) {
           return (
             <TableCell key={month} className="p-1">
               <Input
@@ -309,13 +350,18 @@ function CategoryRow({
           );
         }
 
+        // Review's closed months show the actuals as-is, greyed: they're not a forecast.
         const planned = compareAmounts?.get(key) ?? 0;
-        const status = varianceStatus(category.type, planned, value);
+        const status =
+          mode === "rendiconto"
+            ? varianceStatus(category.type, planned, value)
+            : "neutral";
         return (
           <TableCell
             key={month}
             className={cn(
               "text-right font-mono text-xs tabular-nums",
+              mode === "review" && "bg-muted/40 text-muted-foreground",
               status === "success" && "bg-success/10 text-success",
               status === "destructive" && "bg-destructive/10 text-destructive"
             )}
@@ -328,7 +374,7 @@ function CategoryRow({
         total={sumYear(amounts, category.id)}
         monthsForAverage={monthsForAverage}
         type={category.type}
-        showBudget={mode === "rendiconto"}
+        showBudget={mode !== "budget"}
         plannedTotal={
           compareAmounts ? sumYear(compareAmounts, category.id) : undefined
         }

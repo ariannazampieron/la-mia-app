@@ -19,6 +19,8 @@ export interface MonthBalance {
   revenueTotal: number;
   costTotal: number;
   cashFlow: number;
+  /** Rendiconto only: balance changes that are neither revenue nor cost (transfers, uncategorized). */
+  otherMovements: number;
 }
 
 function periodKey(year: number, month: number) {
@@ -34,7 +36,8 @@ export async function GET(req: Request) {
 
   const { searchParams } = new URL(req.url);
   const year = Number(searchParams.get("year"));
-  if (!Number.isInteger(year)) return apiError("Parametro year non valido", 400);
+  if (!Number.isInteger(year))
+    return apiError("Parametro year non valido", 400);
 
   await ensureCategoriesSeeded(session.user.id);
   const userId = session.user.id;
@@ -99,7 +102,9 @@ export async function GET(req: Request) {
   for (let key = startKey; key <= targetEndKey; key++) {
     const keyYear = Math.floor(key / 12);
     const keyMonth = (key % 12) + 1;
-    const opening = overrideByPeriod.has(key) ? overrideByPeriod.get(key)! : runningOpening;
+    const opening = overrideByPeriod.has(key)
+      ? overrideByPeriod.get(key)!
+      : runningOpening;
     const flow = cashflowByPeriod.get(key) ?? { revenue: 0, cost: 0 };
     const cashFlow = flow.revenue - flow.cost;
     const closing = opening + cashFlow;
@@ -113,6 +118,7 @@ export async function GET(req: Request) {
         revenueTotal: flow.revenue,
         costTotal: flow.cost,
         cashFlow,
+        otherMovements: 0,
       });
     }
   }
@@ -141,7 +147,10 @@ export async function PUT(req: Request) {
     .select({ id: categories.id })
     .from(categories)
     .where(
-      and(eq(categories.id, data.categoryId), eq(categories.userId, session.user.id))
+      and(
+        eq(categories.id, data.categoryId),
+        eq(categories.userId, session.user.id)
+      )
     )
     .limit(1);
   if (!category) return apiError("Categoria non trovata", 404);
