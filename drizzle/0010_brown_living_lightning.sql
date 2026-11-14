@@ -1,0 +1,1 @@
+DROP TABLE "budget_review_entries" CASCADE;

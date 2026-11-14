@@ -64,6 +64,20 @@
       "when": 1794690076493,
       "tag": "0008_groovy_purple_man",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1794692436678,
+      "tag": "0009_copy_review_into_budget",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1794692437869,
+      "tag": "0010_brown_living_lightning",
+      "breakpoints": true
     }
   ]
 }

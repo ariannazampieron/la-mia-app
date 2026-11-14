@@ -13,7 +13,6 @@ import {
 } from "@/components/finance/conto-economico-table";
 import { BudgetImportDialog } from "@/components/finance/budget-import-dialog";
 import { buildReview } from "@/lib/finance/review";
-import { cn } from "@/lib/utils";
 
 interface BudgetEntry {
   categoryId: string;
@@ -25,16 +24,10 @@ interface ActualRow {
   month: number;
   total: string;
 }
-interface ReviewEntry {
-  categoryId: string;
-  month: number;
-  amount: string;
-}
 
 export default function BudgetPage() {
   const [year, setYear] = useState(() => new Date().getFullYear());
   const [tab, setTab] = useState("budget");
-  const [compareWith, setCompareWith] = useState<"budget" | "review">("budget");
   const [categories, setCategories] = useState<ContoEconomicoCategory[]>([]);
 
   const [plannedAmounts, setPlannedAmounts] = useState<Map<string, number>>(
@@ -47,9 +40,6 @@ export default function BudgetPage() {
   );
   const [actualBalances, setActualBalances] = useState<MonthBalance[]>([]);
 
-  const [reviewEntries, setReviewEntries] = useState<Map<string, number>>(
-    new Map()
-  );
   const [closedThroughMonth, setClosedThroughMonth] = useState(0);
 
   const [loaded, setLoaded] = useState(false);
@@ -78,8 +68,7 @@ export default function BudgetPage() {
         await budgetRes.json();
       const actualsBody: { actuals: ActualRow[]; balances: MonthBalance[] } =
         await actualsRes.json();
-      const reviewBody: { entries: ReviewEntry[]; closedThroughMonth: number } =
-        await reviewRes.json();
+      const reviewBody: { closedThroughMonth: number } = await reviewRes.json();
 
       setCategories(categoriesBody.categories);
       setPlannedAmounts(
@@ -99,14 +88,6 @@ export default function BudgetPage() {
         )
       );
       setActualBalances(actualsBody.balances);
-      setReviewEntries(
-        new Map(
-          reviewBody.entries.map((e) => [
-            `${e.categoryId}-${e.month}`,
-            Number(e.amount),
-          ])
-        )
-      );
       setClosedThroughMonth(reviewBody.closedThroughMonth);
       setLoaded(true);
     } catch (err) {
@@ -125,7 +106,6 @@ export default function BudgetPage() {
         categories,
         planned: plannedAmounts,
         actual: actualAmounts,
-        reviewEntries,
         closedThroughMonth,
         plannedBalances,
         actualBalances,
@@ -134,7 +114,6 @@ export default function BudgetPage() {
       categories,
       plannedAmounts,
       actualAmounts,
-      reviewEntries,
       closedThroughMonth,
       plannedBalances,
       actualBalances,
@@ -159,27 +138,6 @@ export default function BudgetPage() {
       await loadAll();
     } catch {
       toast.error("Impossibile salvare il budget per questa cella");
-    }
-  }
-
-  async function handleReviewAmountChange(
-    categoryId: string,
-    month: number,
-    value: number
-  ) {
-    setReviewEntries((prev) =>
-      new Map(prev).set(`${categoryId}-${month}`, value)
-    );
-    try {
-      const res = await fetch("/api/budget/review", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ year, month, categoryId, amount: value }),
-      });
-      if (!res.ok) throw new Error();
-    } catch {
-      toast.error("Impossibile salvare la review per questa cella");
-      await loadAll();
     }
   }
 
@@ -276,51 +234,21 @@ export default function BudgetPage() {
               onOpeningBalanceChange={handleOpeningBalanceChange}
             />
           </TabsContent>
-          <TabsContent value="rendiconto" className="mt-4 space-y-3">
-            <div className="flex flex-wrap items-center gap-2 text-sm">
-              <span className="text-muted-foreground">Confronta con:</span>
-              <div className="border-border inline-flex rounded-full border p-0.5">
-                {(
-                  [
-                    ["budget", "Budget annuale"],
-                    ["review", "Review"],
-                  ] as const
-                ).map(([value, label]) => (
-                  <button
-                    key={value}
-                    onClick={() => setCompareWith(value)}
-                    className={cn(
-                      "rounded-full px-3 py-1 text-xs font-medium transition-colors",
-                      compareWith === value
-                        ? "bg-primary text-primary-foreground"
-                        : "text-muted-foreground hover:text-foreground"
-                    )}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
+          <TabsContent value="rendiconto" className="mt-4">
             <ContoEconomicoTable
               mode="rendiconto"
               categories={categories}
               amounts={actualAmounts}
-              compareAmounts={
-                compareWith === "budget" ? plannedAmounts : review.amounts
-              }
+              compareAmounts={plannedAmounts}
               balances={actualBalances}
-              compareBalances={
-                compareWith === "budget" ? plannedBalances : review.balances
-              }
-              compareLabel={compareWith === "budget" ? "Budget" : "Review"}
+              compareBalances={plannedBalances}
             />
           </TabsContent>
           <TabsContent value="review" className="mt-4 space-y-3">
             <p className="text-muted-foreground text-sm">
               Mesi chiusi con i dati reali ({closedLabel}, in base
-              all&apos;ultimo import in Transazioni); per i mesi aperti parte
-              dal budget e puoi modificare le celle per rimodulare la
-              previsione.
+              all&apos;ultimo import in Transazioni); i mesi aperti sono il
+              budget: modificandoli qui aggiorni direttamente il budget.
             </p>
             <ContoEconomicoTable
               mode="review"
@@ -331,7 +259,7 @@ export default function BudgetPage() {
               compareBalances={plannedBalances}
               compareLabel="Budget"
               closedThroughMonth={closedThroughMonth}
-              onAmountChange={handleReviewAmountChange}
+              onAmountChange={handlePlannedAmountChange}
             />
           </TabsContent>
         </Tabs>

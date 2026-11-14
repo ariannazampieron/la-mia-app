@@ -4,16 +4,15 @@ import type {
 } from "@/components/finance/conto-economico-table";
 
 /**
- * The "Review" budget: actuals for the closed months, and for the open ones the re-forecast
- * amount when entered, otherwise the original budget. Its balances follow the real ones up
- * to the last closed month, then project forward from that real closing with the review flows.
+ * The "Review" view: actuals for the closed months and the budget for the open ones (editing
+ * an open month in Review edits the budget itself). Its balances follow the real ones up to
+ * the last closed month, then project forward from that real closing with the budget flows.
  * Cell maps are keyed `${categoryId}-${month}` like the rest of the Budget page.
  */
 export function buildReview({
   categories,
   planned,
   actual,
-  reviewEntries,
   closedThroughMonth,
   plannedBalances,
   actualBalances,
@@ -21,7 +20,6 @@ export function buildReview({
   categories: ContoEconomicoCategory[];
   planned: Map<string, number>;
   actual: Map<string, number>;
-  reviewEntries: Map<string, number>;
   closedThroughMonth: number;
   plannedBalances: MonthBalance[];
   actualBalances: MonthBalance[];
@@ -33,7 +31,7 @@ export function buildReview({
       const value =
         month <= closedThroughMonth
           ? (actual.get(key) ?? 0)
-          : (reviewEntries.get(key) ?? planned.get(key) ?? 0);
+          : (planned.get(key) ?? 0);
       if (value !== 0) amounts.set(key, value);
     }
   }

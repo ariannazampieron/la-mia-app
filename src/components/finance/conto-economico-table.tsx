@@ -11,6 +11,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+import { ChevronRight } from "lucide-react";
+import { groupExpenseCategories } from "@/lib/finance/expense-groups";
 
 export const MONTH_LABELS = [
   "Gen",
@@ -96,7 +98,18 @@ export function ContoEconomicoTable({
   onOpeningBalanceChange?: (month: number, value: number) => void;
 }) {
   const incomeCategories = categories.filter((c) => c.type === "income");
-  const expenseCategories = categories.filter((c) => c.type === "expense");
+  const expenseGroups = groupExpenseCategories(
+    categories.filter((c) => c.type === "expense")
+  );
+  // Groups start collapsed: only their subtotals show until opened.
+  const [openGroups, setOpenGroups] = useState<Set<string>>(new Set());
+  const toggleGroup = (key: string) =>
+    setOpenGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
   const balanceByMonth = new Map(balances.map((b) => [b.month, b]));
 
   const yearRevenueTotal = balances.reduce((sum, b) => sum + b.revenueTotal, 0);
@@ -206,18 +219,36 @@ export function ContoEconomicoTable({
           />
 
           <SectionBand label="Costi" colSpan={14 + summaryColumns} />
-          {expenseCategories.map((category) => (
-            <CategoryRow
-              key={category.id}
-              category={category}
-              amounts={amounts}
-              compareAmounts={compareAmounts}
-              mode={mode}
-              monthsForAverage={monthsForAverage}
-              closedThroughMonth={closedThroughMonth}
-              onAmountChange={onAmountChange}
-            />
-          ))}
+          {expenseGroups
+            .filter((group) => group.categories.length > 0)
+            .flatMap((group) => [
+              <GroupRow
+                key={group.key}
+                label={group.label}
+                categories={group.categories}
+                amounts={amounts}
+                compareAmounts={compareAmounts}
+                mode={mode}
+                monthsForAverage={monthsForAverage}
+                expanded={openGroups.has(group.key)}
+                onToggle={() => toggleGroup(group.key)}
+              />,
+              ...(openGroups.has(group.key)
+                ? group.categories.map((category) => (
+                    <CategoryRow
+                      key={category.id}
+                      category={category}
+                      amounts={amounts}
+                      compareAmounts={compareAmounts}
+                      mode={mode}
+                      monthsForAverage={monthsForAverage}
+                      closedThroughMonth={closedThroughMonth}
+                      onAmountChange={onAmountChange}
+                      indent
+                    />
+                  ))
+                : []),
+            ])}
           <TotalRow
             label="Totale costi"
             tone="destructive"
@@ -297,6 +328,7 @@ function CategoryRow({
   monthsForAverage,
   closedThroughMonth,
   onAmountChange,
+  indent = false,
 }: {
   category: ContoEconomicoCategory;
   amounts: Map<string, number>;
@@ -305,6 +337,8 @@ function CategoryRow({
   monthsForAverage: number;
   closedThroughMonth: number;
   onAmountChange?: (categoryId: string, month: number, value: number) => void;
+  /** Shown inside an expense group. */
+  indent?: boolean;
 }) {
   const [saving, setSaving] = useState<number | null>(null);
 
@@ -323,7 +357,7 @@ function CategoryRow({
 
   return (
     <TableRow>
-      <TableCell className="bg-card sticky left-0 z-10">
+      <TableCell className={cn("bg-card sticky left-0 z-10", indent && "pl-8")}>
         {category.name}
       </TableCell>
       {MONTH_LABELS.map((_, index) => {
@@ -378,6 +412,79 @@ function CategoryRow({
         plannedTotal={
           compareAmounts ? sumYear(compareAmounts, category.id) : undefined
         }
+      />
+    </TableRow>
+  );
+}
+
+/** Collapsible subtotal of an expense group, colored against the comparison like a category. */
+function GroupRow({
+  label,
+  categories,
+  amounts,
+  compareAmounts,
+  mode,
+  monthsForAverage,
+  expanded,
+  onToggle,
+}: {
+  label: string;
+  categories: ContoEconomicoCategory[];
+  amounts: Map<string, number>;
+  compareAmounts?: Map<string, number>;
+  mode: "budget" | "rendiconto" | "review";
+  monthsForAverage: number;
+  expanded: boolean;
+  onToggle: () => void;
+}) {
+  const sumMonth = (map: Map<string, number>, month: number) =>
+    categories.reduce((sum, c) => sum + (map.get(`${c.id}-${month}`) ?? 0), 0);
+  const sumAll = (map: Map<string, number>) =>
+    categories.reduce((sum, c) => sum + sumYear(map, c.id), 0);
+
+  return (
+    <TableRow className="bg-muted/40 hover:bg-muted/40 font-medium">
+      <TableCell className="from-muted/40 to-muted/40 bg-card sticky left-0 z-10 bg-linear-to-r">
+        <button
+          onClick={onToggle}
+          aria-expanded={expanded}
+          className="flex w-full items-center gap-1.5 text-left"
+        >
+          <ChevronRight
+            className={cn(
+              "h-3.5 w-3.5 shrink-0 transition-transform",
+              expanded && "rotate-90"
+            )}
+          />
+          {label}
+        </button>
+      </TableCell>
+      {MONTH_LABELS.map((_, index) => {
+        const month = index + 1;
+        const value = sumMonth(amounts, month);
+        const status =
+          mode === "rendiconto" && compareAmounts
+            ? varianceStatus("expense", sumMonth(compareAmounts, month), value)
+            : "neutral";
+        return (
+          <TableCell
+            key={month}
+            className={cn(
+              "text-right font-mono text-xs tabular-nums",
+              status === "success" && "bg-success/10 text-success",
+              status === "destructive" && "bg-destructive/10 text-destructive"
+            )}
+          >
+            {value !== 0 ? currencyFormatter.format(value) : "—"}
+          </TableCell>
+        );
+      })}
+      <SummaryCells
+        total={sumAll(amounts)}
+        monthsForAverage={monthsForAverage}
+        type="expense"
+        showBudget={mode !== "budget"}
+        plannedTotal={compareAmounts ? sumAll(compareAmounts) : undefined}
       />
     </TableRow>
   );
