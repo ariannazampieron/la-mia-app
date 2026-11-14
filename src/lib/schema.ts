@@ -303,6 +303,12 @@ export const userSettings = pgTable("user_settings", {
     .primaryKey()
     .references(() => user.id, { onDelete: "cascade" }),
   lastStatementImportDate: date("last_statement_import_date"),
+  // Patrimonio on the Home page; null means "use the default" in src/lib/finance/patrimonio.ts.
+  houseValue: numeric("house_value", { precision: 12, scale: 2 }),
+  investmentsValue: numeric("investments_value", { precision: 12, scale: 2 }),
+  pensionFundBase: numeric("pension_fund_base", { precision: 12, scale: 2 }),
+  /** "FONDO PENSIONE" transactions from this date on are added to pensionFundBase. */
+  pensionFundSince: date("pension_fund_since"),
   updatedAt: timestamp("updated_at")
     .defaultNow()
     .$onUpdate(() => new Date())

@@ -13,6 +13,9 @@ import {
   TAX_RATE,
 } from "@/lib/finance/calculations";
 import { IndicatorCard } from "@/components/finance/indicator-card";
+import { EditableAmount } from "@/components/finance/editable-amount";
+import { getPatrimonio } from "@/lib/finance/patrimonio";
+import { getTaxOverview } from "@/lib/finance/tax-overview";
 
 /** Short Italian month name ("ott", "nov") for a 1-based month. */
 function monthName(month: number) {
@@ -37,17 +40,41 @@ export default async function DashboardPage() {
     )
     .limit(1);
 
-  const [fatturato, imposte, fondo, risparmio, liquidita, savingsBalance] =
-    await Promise.all([
-      getFatturatoAnnuale(userId, year),
-      getImposteAnnuali(userId, year),
-      getFondoTasseBreakdown(userId, year),
-      getRisparmio(userId, year),
-      getLiquiditaDisponibile(userId),
-      savingsAccount
-        ? getAccountBalance(savingsAccount.id)
-        : Promise.resolve(0),
-    ]);
+  const [
+    fatturato,
+    imposte,
+    fondo,
+    risparmio,
+    liquidita,
+    savingsBalance,
+    patrimonio,
+    taxOverview,
+  ] = await Promise.all([
+    getFatturatoAnnuale(userId, year),
+    getImposteAnnuali(userId, year),
+    getFondoTasseBreakdown(userId, year),
+    getRisparmio(userId, year),
+    getLiquiditaDisponibile(userId),
+    savingsAccount ? getAccountBalance(savingsAccount.id) : Promise.resolve(0),
+    getPatrimonio(userId),
+    getTaxOverview(userId),
+  ]);
+
+  // Taxes accrued so far: what's left for this year plus next year's estimate to date.
+  const tasseDaPagare = taxOverview.taxes.reduce(
+    (sum, t) => sum + t.remaining,
+    0
+  );
+  const disponibilitaLiquida =
+    risparmio + fondo.total + liquidita - tasseDaPagare;
+  const pensionSince = new Date(patrimonio.pensionFundSince).toLocaleDateString(
+    "it-IT",
+    {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    }
+  );
 
   const fondoTasse = fondo.total;
   const fondoTasseRows =
@@ -124,11 +151,71 @@ export default async function DashboardPage() {
           ]}
         />
         <IndicatorCard
-          title="Liquidità disponibile"
+          title="Liquidità c/c"
           value={liquidita}
           tone="sage"
           breakdown={[
             { label: "Somma conti non di risparmio", value: liquidita },
+          ]}
+        />
+        <IndicatorCard
+          title="Tasse da pagare"
+          value={tasseDaPagare}
+          tone="sage"
+          breakdown={taxOverview.taxes.map((t) => ({
+            label: t.estimate
+              ? `${t.year} (stima maturata a oggi)`
+              : t.due === null
+                ? `${t.year} (totale non inserito)`
+                : `Ancora da pagare ${t.year}`,
+            value: t.remaining,
+          }))}
+        />
+        <IndicatorCard
+          title="Patrimonio"
+          value={patrimonio.total}
+          tone="sage"
+          breakdown={[
+            {
+              label: "Casa",
+              value: patrimonio.houseValue,
+              valueNode: (
+                <EditableAmount
+                  value={patrimonio.houseValue}
+                  field="houseValue"
+                />
+              ),
+            },
+            { label: "Fondo pensione", value: patrimonio.pensionFund },
+            {
+              label: `di cui valore iniziale (+ versamenti dal ${pensionSince})`,
+              value: patrimonio.pensionFundBase,
+              valueNode: (
+                <EditableAmount
+                  value={patrimonio.pensionFundBase}
+                  field="pensionFundBase"
+                />
+              ),
+            },
+            {
+              label: "Investimenti",
+              value: patrimonio.investmentsValue,
+              valueNode: (
+                <EditableAmount
+                  value={patrimonio.investmentsValue}
+                  field="investmentsValue"
+                />
+              ),
+            },
+          ]}
+        />
+        <IndicatorCard
+          title="Disponibilità"
+          value={disponibilitaLiquida + patrimonio.total}
+          tone="sage"
+          breakdown={[
+            { label: "Liquida", value: disponibilitaLiquida },
+            { label: "Bloccata (patrimonio)", value: patrimonio.total },
           ]}
         />
       </div>

@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
-import { categories, taxDueAmounts, transactions } from "@/lib/schema";
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { categories, transactions } from "@/lib/schema";
+import { and, eq, sql } from "drizzle-orm";
 import {
   applyRateLimit,
   requireApiAuth,
@@ -8,16 +8,7 @@ import {
   apiError,
 } from "@/lib/api-utils";
 import { RATE_LIMITS } from "@/lib/rate-limit";
-import {
-  getFatturatoAnnuale,
-  getFondoTasse,
-  getImposteAnnuali,
-} from "@/lib/finance/calculations";
-import { computeTaxCoverage } from "@/lib/finance/taxes";
-import {
-  estimateNextYearTaxes,
-  TAX_YEAR_PARAMS,
-} from "@/lib/finance/tax-estimate";
+import { getTaxOverview } from "@/lib/finance/tax-overview";
 
 const CLIENT_PREFIX = "Clienti_";
 
@@ -34,18 +25,10 @@ export async function GET(req: Request) {
     return apiError("Parametro year non valido", 400);
 
   const userId = session.user.id;
-  // Taxes: the current calendar year and the next one, regardless of the year shown.
-  const taxYears = [new Date().getFullYear(), new Date().getFullYear() + 1];
 
-  const [
-    currentYearRevenue,
-    clientCategories,
-    revenueRows,
-    dueRows,
-    fund,
-    ...paid
-  ] = await Promise.all([
-    getFatturatoAnnuale(userId, taxYears[0]),
+  // Taxes always refer to the current calendar year and the next one,
+  // regardless of the year shown in the revenue chart.
+  const [clientCategories, revenueRows, overview] = await Promise.all([
     db
       .select({ id: categories.id, name: categories.name })
       .from(categories)
@@ -75,17 +58,7 @@ export async function GET(req: Request) {
         transactions.categoryId,
         sql`extract(month from ${transactions.date})`
       ),
-    db
-      .select({ year: taxDueAmounts.year, amount: taxDueAmounts.amount })
-      .from(taxDueAmounts)
-      .where(
-        and(
-          eq(taxDueAmounts.userId, userId),
-          inArray(taxDueAmounts.year, taxYears)
-        )
-      ),
-    getFondoTasse(userId, taxYears[0]),
-    ...taxYears.map((y) => getImposteAnnuali(userId, y)),
+    getTaxOverview(userId),
   ]);
 
   const months = Array.from({ length: 12 }, () => 0);
@@ -109,32 +82,5 @@ export async function GET(req: Request) {
     }))
     .sort((a, b) => b.total - a.total);
 
-  const dueByYear = new Map(dueRows.map((r) => [r.year, Number(r.amount)]));
-  // Next year's taxes are estimated from this year's revenue when its parameters are known;
-  // otherwise (and always for the current year) the total due is the one entered by hand.
-  const params = TAX_YEAR_PARAMS[taxYears[0]];
-  const estimate = params
-    ? estimateNextYearTaxes(currentYearRevenue, taxYears[0], params)
-    : null;
-  const taxes = computeTaxCoverage(fund, [
-    {
-      year: taxYears[0],
-      due: dueByYear.get(taxYears[0]) ?? null,
-      paid: paid[0],
-    },
-    estimate
-      ? {
-          year: taxYears[1],
-          due: estimate.total,
-          paid: paid[1],
-          estimate: estimate.lines,
-        }
-      : {
-          year: taxYears[1],
-          due: dueByYear.get(taxYears[1]) ?? null,
-          paid: paid[1],
-        },
-  ]);
-
-  return apiResponse({ year, months, total, clients, fondoTasse: fund, taxes });
+  return apiResponse({ year, months, total, clients, ...overview });
 }

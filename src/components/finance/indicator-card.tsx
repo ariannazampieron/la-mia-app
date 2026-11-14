@@ -18,7 +18,8 @@ export function IndicatorCard({
 }: {
   title: string;
   value: number;
-  breakdown: { label: string; value: number }[];
+  /** `valueNode` replaces the formatted value, e.g. with an editable amount. */
+  breakdown: { label: string; value: number; valueNode?: React.ReactNode }[];
   tone: CardTone;
   /** Optional percentage shown as a small badge next to the title (e.g. savings rate on revenue). */
   percentage?: number;
@@ -57,18 +58,18 @@ export function IndicatorCard({
       <CardContent className="space-y-4">
         <p
           className={cn(
-            "font-mono text-3xl font-bold tracking-tight tabular-nums text-foreground",
+            "text-foreground font-mono text-3xl font-bold tracking-tight tabular-nums",
             value < 0 && "text-destructive"
           )}
         >
           {currencyFormatter.format(value)}
         </p>
-        <dl className="space-y-1 border-t border-border pt-3 text-xs text-muted-foreground">
+        <dl className="border-border text-muted-foreground space-y-1 border-t pt-3 text-xs">
           {breakdown.map((item) => (
             <div key={item.label} className="flex items-center justify-between">
               <dt>{item.label}</dt>
               <dd className="font-mono tabular-nums">
-                {currencyFormatter.format(item.value)}
+                {item.valueNode ?? currencyFormatter.format(item.value)}
               </dd>
             </div>
           ))}

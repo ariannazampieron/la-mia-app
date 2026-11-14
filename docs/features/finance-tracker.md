@@ -12,7 +12,7 @@ Monitora costi, ricavi e tasso di risparmio personali. Calcola automaticamente t
 - **`budget_entries`** — `userId`, `year`, `month`, `categoryId`, `plannedAmount`. Vincolo unico su `(userId, year, month, categoryId)`.
 - **`casa_manual_totals`** — `userId`, `section` (`acquisto`/`ristrutturazione`/`arredamento`/`accessori`/`utenze_manutenzione`), `year`, `amount`. Vincolo unico su `(userId, section, year)`. Memorizza i totali inseriti a mano per anni senza transazioni tracciate (es. 2025) o per sezioni senza categoria associata (es. "Acquisto").
 - **`budget_opening_balance`** — `userId`, `year`, `month`, `amount`. Vincolo unico su `(userId, year, month)`. Override manuale del saldo di apertura usato solo dal tab **Budget** (pianificato) per proiettare la liquidità futura mese per mese — il tab **Rendiconto** non ne ha bisogno: il saldo reale si calcola sempre da `finance_accounts.openingBalance` + transazioni reali precedenti al mese.
-- **`user_settings`** — `userId` (PK), `lastStatementImportDate`. Una riga per utente con le preferenze dell'app.
+- **`user_settings`** — `userId` (PK), `lastStatementImportDate`, `houseValue`, `investmentsValue`, `pensionFundBase`, `pensionFundSince`. Una riga per utente con le preferenze dell'app; i valori del patrimonio a null usano i default di `src/lib/finance/patrimonio.ts`.
 
 ### Modified Tables
 Nessuna modifica di colonne — sostituita solo la categoria seed `ACQUISTI CASA` con 4 categorie più specifiche (vedi Notes).
@@ -73,3 +73,14 @@ Nessuna modifica di colonne — sostituita solo la categoria seed `ACQUISTI CASA
 - **Redesign (2026-10-25)**: direzione visiva passata da "Soft-Tactile" (sage/warm) a "Technical-Utility" (navy `#1E2A52` + teal `#14B8A6`, sfondo bianco) su richiesta esplicita dell'utente, con riferimento diretto a screenshot di un'altra app sua ("LOOP — Gestione Economica") e al proprio logo. Vedi `DESIGN.md` revisione 2 per il dettaglio completo — non tornare alla direzione precedente.
 - **`src/lib/db.ts` — fix connessioni esaurite**: il client Postgres veniva ricreato ad ogni hot-reload di Next.js in sviluppo senza chiudere il precedente, esaurendo `max_connections` dopo ore di sessione `pnpm dev` attiva (errore Postgres `53300 too_many_connections`). Ora è cache-ato su `globalThis.__pgClient` in sviluppo (pattern standard Next.js+HMR) con `max: 10` connessioni nel pool. Se l'errore si ripresenta: `docker restart la-mia-app-postgres-1` libera le connessioni senza perdere dati (volume persistente).
 - **Budget vs Rendiconto — saldo proiettato vs reale**: il tab Budget proietta la liquidità futura a cascata (mese N+1 = chiusura mese N, salvo override manuale in `budget_opening_balance`) usando i valori PIANIFICATI; il tab Rendiconto calcola invece la liquidità REALE ad ogni inizio mese direttamente dalle transazioni (`getLiquidityAsOf` in `calculations.ts`), senza bisogno di alcun inserimento manuale oltre al saldo iniziale dei conti già presente in `finance_accounts`.
+
+## Home
+
+Sei riquadri (`src/app/dashboard/page.tsx`):
+
+- **Risparmio** = saldo del conto di risparmio − Fondo Tasse.
+- **Fondo Tasse** — vedi sopra (cumulativo dal 2026).
+- **Liquidità c/c** = somma dei saldi dei conti non di risparmio.
+- **Tasse da pagare** = quanto resta da pagare nell'anno corrente + la stima maturata a oggi per l'anno successivo, gli stessi numeri della pagina "Fatturato e imposte" (`getTaxOverview` in `src/lib/finance/tax-overview.ts`).
+- **Patrimonio** = Casa + Fondo pensione + Investimenti. Casa, Investimenti e il valore iniziale del fondo pensione si modificano con la matita (`EditableAmount` → `PUT /api/settings`); al fondo pensione si sommano in automatico le uscite in categoria "FONDO PENSIONE" da `pensionFundSince` (default 1/11/2026) in poi.
+- **Disponibilità** = Liquida (Risparmio + Fondo Tasse + Liquidità c/c − Tasse da pagare) + Bloccata (Patrimonio).

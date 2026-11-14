@@ -7,6 +7,7 @@ import {
   requireApiAuth,
   parseBody,
   apiResponse,
+  apiError,
 } from "@/lib/api-utils";
 import { RATE_LIMITS } from "@/lib/rate-limit";
 
@@ -29,7 +30,10 @@ export async function GET() {
 }
 
 const updateSchema = z.object({
-  lastStatementImportDate: z.string().date().nullable(),
+  lastStatementImportDate: z.string().date().nullable().optional(),
+  houseValue: z.number().min(0).optional(),
+  investmentsValue: z.number().min(0).optional(),
+  pensionFundBase: z.number().min(0).optional(),
 });
 
 export async function PUT(req: Request) {
@@ -42,16 +46,28 @@ export async function PUT(req: Request) {
   const { data, error: parseErr } = await parseBody(req, updateSchema);
   if (parseErr) return parseErr;
 
+  // Only the fields sent are changed: each one is saved on its own from the UI.
+  const changes = {
+    ...(data.lastStatementImportDate !== undefined && {
+      lastStatementImportDate: data.lastStatementImportDate,
+    }),
+    ...(data.houseValue !== undefined && {
+      houseValue: data.houseValue.toFixed(2),
+    }),
+    ...(data.investmentsValue !== undefined && {
+      investmentsValue: data.investmentsValue.toFixed(2),
+    }),
+    ...(data.pensionFundBase !== undefined && {
+      pensionFundBase: data.pensionFundBase.toFixed(2),
+    }),
+  };
+  if (Object.keys(changes).length === 0)
+    return apiError("Nessun valore da salvare", 400);
+
   await db
     .insert(userSettings)
-    .values({
-      userId: session.user.id,
-      lastStatementImportDate: data.lastStatementImportDate,
-    })
-    .onConflictDoUpdate({
-      target: userSettings.userId,
-      set: { lastStatementImportDate: data.lastStatementImportDate },
-    });
+    .values({ userId: session.user.id, ...changes })
+    .onConflictDoUpdate({ target: userSettings.userId, set: changes });
 
   return apiResponse({ ok: true });
 }
