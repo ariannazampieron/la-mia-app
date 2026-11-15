@@ -25,6 +25,7 @@ const NAMED_GROUPS = [
       "IMPOSTE",
       "PREVIDENZA",
       "ELETTRONICA",
+      "TOOL LAVORO",
     ],
   },
 ];
