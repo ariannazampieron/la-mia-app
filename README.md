@@ -4,7 +4,7 @@ App personale per monitorare costi, ricavi e tasso di risparmio, basata sull'imp
 
 ## Funzionalità
 
-- **Home** — indicatori calcolati automaticamente dalle transazioni: Risparmio, Fondo Tasse, Liquidità c/c, Tasse da pagare, Patrimonio (casa, fondo pensione, investimenti) e Disponibilità (liquida + bloccata).
+- **Home** — i due obiettivi (8 mesi di spese coperte dal risparmio, tasse maturate coperte dal fondo tasse) con l'avanzamento, lo scenario "se perdo il lavoro", il dettaglio di risparmio, fondo tasse, liquidità, patrimonio e disponibilità, e il grafico di quanto si mette via ogni mese.
 - **Conti** — 5 conti fissi (BBVA, BCC, Paypal, Conto Arancio, Conto Arancio Deposito) con saldo di partenza impostabile una tantum e saldo corrente calcolato automaticamente.
 - **Import estratti conto** — carica file `.csv` o `.xlsx` con colonne data/descrizione/importo/entrata-uscita/categoria; validazione bloccante sugli errori e rilevamento duplicati con conferma manuale.
 - **Categorizzazione automatica** — le transazioni ricorrenti vengono categorizzate in automatico (pattern storici + AI via OpenRouter); quelle non riconosciute restano segnalate come "da categorizzare".

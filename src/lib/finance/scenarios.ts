@@ -1,63 +1,91 @@
 /**
- * "What if" scenarios on the Home page. Pure: every input is already computed elsewhere
- * (Home indicators, Analisi costi averages, revenue per client), so the formulas can be
- * checked with plain numbers.
+ * "What if" scenario and goals on the Home page. Pure: every input is already computed
+ * elsewhere (savings split from getTaxOverview, survival average from Analisi costi), so the
+ * formulas can be checked with plain numbers.
  */
 
-export interface ScenarioInputs {
-  /** Savings account balance minus the tax fund (Home "Risparmio"). */
-  risparmio: number;
-  fondoTasse: number;
-  /** Taxes accrued and still to pay, this year and next (Home "Tasse da pagare"). */
-  tasseDaPagare: number;
-  /** Monthly averages from Analisi costi. */
-  survivalMonthly: number;
-  /** Work expenses without taxes. */
-  workMonthly: number;
-  extraMonthly: number;
-  travelMonthly: number;
-  /** Average monthly revenue from all clients except the biggest one. */
-  otherClientsMonthly: number;
-  /** Share of revenue set aside for taxes (23%). */
-  taxRate: number;
-  /** Amount to keep saving each month in scenario 3. */
-  monthlySavingsGoal: number;
-}
-
-/** Months the money lasts; null means it never runs out (income covers the costs). */
+/** Months the money lasts; null means there are no costs to cover. */
 export type Runway = number | null;
 
-function runway(money: number, monthlyBurn: number): Runway {
-  if (monthlyBurn <= 0) return null;
-  return Math.max(money, 0) / monthlyBurn;
+const monthsFormatter = new Intl.NumberFormat("it-IT", {
+  maximumFractionDigits: 1,
+});
+
+/** "7,5 mesi", or "Senza limite" when there are no costs to cover. */
+export function formatRunway(months: Runway): string {
+  if (months === null) return "Senza limite";
+  return `${monthsFormatter.format(months)} ${months === 1 ? "mese" : "mesi"}`;
 }
 
-export function computeScenarios(i: ScenarioInputs) {
-  const savedOnly = i.risparmio;
-  const savedNetOfTaxes = i.risparmio + i.fondoTasse - i.tasseDaPagare;
-  const workingCosts = i.survivalMonthly + i.workMonthly;
-  const allCosts = workingCosts + i.extraMonthly + i.travelMonthly;
-  const otherClientsNet = i.otherClientsMonthly * (1 - i.taxRate);
+function runway(money: number, monthlyCost: number): Runway {
+  if (monthlyCost <= 0) return null;
+  return Math.max(money, 0) / monthlyCost;
+}
 
+/** Months of survival expenses the savings should cover. */
+export const SAFETY_MONTHS_GOAL = 8;
+
+export function computeHomeGoals({
+  savingsBalance,
+  risparmio,
+  fondoTasse,
+  tasseDaPagare,
+  survivalMonthly,
+}: {
+  /** Conto Arancio Deposito balance (= Fondo Tasse + Risparmio). */
+  savingsBalance: number;
+  risparmio: number;
+  fondoTasse: number;
+  tasseDaPagare: number;
+  survivalMonthly: number;
+}) {
+  const safetyTarget = SAFETY_MONTHS_GOAL * survivalMonthly;
   return {
-    /** Scenario 1 — no income at all, only survival costs. */
+    /** Goal 1 — savings cover SAFETY_MONTHS_GOAL months of survival expenses. */
+    safety: {
+      target: safetyTarget,
+      current: Math.max(risparmio, 0),
+      progress: safetyTarget > 0 ? Math.max(risparmio, 0) / safetyTarget : 1,
+      missing: Math.max(safetyTarget - risparmio, 0),
+      monthsCovered: runway(risparmio, survivalMonthly),
+    },
+    /** Goal 2 — the tax fund covers every tax accrued so far. */
+    taxes: {
+      target: tasseDaPagare,
+      current: fondoTasse,
+      progress: tasseDaPagare > 0 ? fondoTasse / tasseDaPagare : 1,
+      missing: Math.max(tasseDaPagare - fondoTasse, 0),
+    },
+    /** Scenario 1 — I lose my job: how many months can I go on? */
     jobLoss: {
-      savingsOnly: runway(savedOnly, i.survivalMonthly),
-      afterTaxes: runway(savedNetOfTaxes, i.survivalMonthly),
-      savedOnly,
-      savedNetOfTaxes,
-    },
-    /** Scenario 2 — the biggest client pays late: other clients' revenue keeps coming in. */
-    lateClient: {
-      savingsOnly: runway(savedOnly, workingCosts - i.otherClientsMonthly),
-      afterTaxes: runway(savedNetOfTaxes, workingCosts - i.otherClientsMonthly),
-      monthlyBurn: workingCosts - i.otherClientsMonthly,
-    },
-    /** Scenario 3 — the biggest client is lost: cuts needed to keep saving the goal. */
-    clientLoss: {
-      allCosts,
-      otherClientsNet,
-      cutNeeded: allCosts + i.monthlySavingsGoal - otherClientsNet,
+      /** All the savings account, as if taxes didn't exist. */
+      ignoringTaxes: runway(savingsBalance, survivalMonthly),
+      /** Only what's left after the taxes are paid. */
+      afterTaxes: runway(risparmio, survivalMonthly),
     },
   };
+}
+
+/**
+ * How the savings account grew month by month, split as the Home splits it today: the
+ * balance fills the tax fund first (up to the taxes to pay), the rest is savings.
+ * Returns, per month, how much each part grew (negative when money was taken out).
+ */
+export function monthlySavingsSplit(
+  yearOpening: number,
+  monthEnd: number[],
+  taxTarget: number
+): { fondoTasse: number; risparmio: number }[] {
+  const split = (balance: number) => {
+    const fondo = Math.min(Math.max(balance, 0), taxTarget);
+    return { fondo, risparmio: balance - fondo };
+  };
+  return monthEnd.map((balance, i) => {
+    const before = split(i === 0 ? yearOpening : monthEnd[i - 1]);
+    const after = split(balance);
+    return {
+      fondoTasse: after.fondo - before.fondo,
+      risparmio: after.risparmio - before.risparmio,
+    };
+  });
 }

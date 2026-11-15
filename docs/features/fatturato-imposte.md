@@ -10,7 +10,7 @@ Pagina `/dashboard/fatturato` (voce "Fatturato e imposte" nel menu laterale).
   - **Totale da pagare nell'anno**: per l'anno corrente si inserisce a mano con la matita (tabella `tax_due_amounts`). Per l'anno successivo è **stimato** dal fatturato dell'anno corrente quando in `TAX_YEAR_PARAMS` ci sono i dati di quell'anno (altrimenti torna manuale), e il riquadro mostra le voci della stima.
   - **Già pagato**: transazioni dell'anno nella categoria `IMPOSTE`.
   - **Ancora da pagare** = totale − già pagato (mai sotto zero).
-  - **Copertura**: il Fondo Tasse attuale (`getFondoTasse` dell'anno corrente) copre prima l'anno corrente e il resto va al successivo (`computeTaxCoverage` in `src/lib/finance/taxes.ts`). Se non basta, il riquadro dice quanto manca.
+  - **Copertura**: il saldo del Conto Deposito copre prima l'anno corrente e il resto va al successivo (`computeTaxCoverage` in `src/lib/finance/taxes.ts`). Se non basta, il riquadro dice quanto manca.
 
 ## File
 
@@ -36,6 +36,6 @@ I dati che non si ricavano dal fatturato (contributi versati, acconti già pagat
 
 Semplificazioni: aliquota INPS unica 24,48% (non lo scaglione più alto oltre il primo limite), nessun diritto camerale, nessun altro reddito IRPEF; un eventuale credito (acconti superiori all'imposta) è considerato zero.
 
-## Fondo tasse cumulativo
+## Fondo tasse
 
-Dal 2026 (`TAX_FUND_START_YEAR` in `calculations.ts`) il Fondo Tasse somma quanto avanzato negli anni precedenti (accantonato − imposte pagate), così a gennaio non riparte da zero mentre si pagano le imposte dell'anno prima. In Home compare come "Residuo anni precedenti".
+Il Fondo Tasse non è più un accantonamento al 23% del fatturato: è la parte del saldo del Conto Deposito che copre queste tasse (vedi "Home" in `finance-tracker.md`). Calcolo condiviso in `getTaxOverview` (`src/lib/finance/tax-overview.ts`).

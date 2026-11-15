@@ -22,7 +22,8 @@ interface FatturatoData {
   months: number[];
   total: number;
   clients: { name: string; total: number }[];
-  fondoTasse: number;
+  savingsBalance: number;
+  savingsAccountName: string | null;
   taxes: TaxYearCoverage[];
 }
 
@@ -180,12 +181,12 @@ export default function FatturatoPage() {
 
           <div className="space-y-3">
             <p className="text-muted-foreground text-sm">
-              Fondo tasse disponibile:{" "}
+              Saldo {data.savingsAccountName ?? "conto risparmio"}:{" "}
               <span className="text-foreground font-mono font-semibold tabular-nums">
-                {currencyFormatter.format(data.fondoTasse)}
+                {currencyFormatter.format(data.savingsBalance)}
               </span>{" "}
               — copre prima le imposte del {data.taxes[0]?.year}, poi quelle del{" "}
-              {data.taxes[1]?.year}.
+              {data.taxes[1]?.year}; quello che avanza è risparmio.
             </p>
             <div className="grid gap-4 md:grid-cols-2">
               {data.taxes.map((tax) => (

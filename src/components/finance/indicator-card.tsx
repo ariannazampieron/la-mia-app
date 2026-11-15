@@ -22,8 +22,9 @@ export function IndicatorCard({
   /** `valueNode` replaces the formatted value, e.g. with an editable amount. */
   breakdown: { label: string; value: number; valueNode?: React.ReactNode }[];
   tone: CardTone;
-  /** "alert": red border (amounts to pay); "solid": filled green, like the Casa value card. */
-  variant?: "default" | "alert" | "solid";
+  /** "alert": red border (amounts to pay); "solid": filled green, like the Casa value card;
+   *  "tinted": full pale-teal fill with a larger figure (Home detail cards). */
+  variant?: "default" | "alert" | "solid" | "tinted";
   /** Optional percentage shown as a small badge next to the title (e.g. savings rate on revenue). */
   percentage?: number;
   percentageLabel?: string;
@@ -31,12 +32,14 @@ export function IndicatorCard({
 }) {
   const colors = CARD_TONES[tone];
   const solid = variant === "solid";
+  const tinted = variant === "tinted";
 
   return (
     <Card
       className={cn(
         variant === "alert" && "border-destructive",
         solid && "border-success bg-success text-success-foreground",
+        tinted && "bg-accent border-transparent shadow-none",
         className
       )}
       style={
@@ -52,7 +55,8 @@ export function IndicatorCard({
           <CardTitle
             className={cn(
               "text-sm font-semibold tracking-wider uppercase",
-              variant === "alert" && "text-destructive"
+              variant === "alert" && "text-destructive",
+              tinted && "text-accent-foreground"
             )}
             style={variant === "default" ? { color: colors.text } : undefined}
           >
@@ -72,7 +76,8 @@ export function IndicatorCard({
       <CardContent className="space-y-4">
         <p
           className={cn(
-            "font-mono text-3xl font-bold tracking-tight tabular-nums",
+            "font-mono font-bold tracking-tight tabular-nums",
+            solid || tinted ? "text-4xl" : "text-3xl",
             solid ? "text-success-foreground" : "text-foreground",
             !solid && value < 0 && "text-destructive"
           )}
@@ -84,7 +89,9 @@ export function IndicatorCard({
             "space-y-1 border-t pt-3 text-xs",
             solid
               ? "border-success-foreground/30 text-success-foreground/85"
-              : "border-border text-muted-foreground"
+              : tinted
+                ? "border-accent-foreground/15 text-accent-foreground/80"
+                : "border-border text-muted-foreground"
           )}
         >
           {breakdown.map((item) => (

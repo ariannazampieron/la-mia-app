@@ -1,7 +1,7 @@
 # Finance Tracker
 
 ## What It Does
-Monitora costi, ricavi e tasso di risparmio personali. Calcola automaticamente tre indicatori chiave (Risparmio, Fondo Tasse, Liquidità disponibile) a partire dalle transazioni importate dagli estratti conto di 6 conti fissi, categorizzate automaticamente tramite pattern storici e AI. Budget & Rendiconto è una tabella in stile conto economico (ricavi/costi per categoria, totali in grassetto, cash flow e liquidità proiettata mese per mese) in due varianti: Budget (pianificato, editabile) e Rendiconto (reale, con variance verde/rosso per categoria). Include anche una sezione dedicata "Casa" che aggrega per anno le spese legate alla casa (acquisto, ristrutturazione, arredamento, accessori, utenze e manutenzione).
+Monitora costi, ricavi e tasso di risparmio personali. In Home mostra gli obiettivi di risparmio e copertura delle tasse e gli indicatori chiave (Risparmio, Fondo Tasse, Liquidità c/c, Patrimonio, Disponibilità) a partire dalle transazioni importate dagli estratti conto di 6 conti fissi, categorizzate automaticamente tramite pattern storici e AI. Budget & Rendiconto è una tabella in stile conto economico (ricavi/costi per categoria, totali in grassetto, cash flow e liquidità proiettata mese per mese) in due varianti: Budget (pianificato, editabile) e Rendiconto (reale, con variance verde/rosso per categoria). Include anche una sezione dedicata "Casa" che aggrega per anno le spese legate alla casa (acquisto, ristrutturazione, arredamento, accessori, utenze e manutenzione).
 
 ## Data Model
 
@@ -40,7 +40,8 @@ Nessuna modifica di colonne — sostituita solo la categoria seed `ACQUISTI CASA
 
 ## Key Files
 - `src/lib/schema.ts` — tabelle `financeAccounts`, `categories`, `transactions`, `budgetEntries`
-- `src/lib/finance/calculations.ts` — formule di Risparmio/Fondo Tasse/Liquidità/saldo conto
+- `src/lib/finance/calculations.ts` — saldi dei conti, fatturato, imposte pagate, saldo mensile del conto di risparmio
+- `src/lib/finance/tax-overview.ts` — tasse da pagare e divisione del Conto Deposito in Fondo Tasse e Risparmio
 - `src/lib/finance/categories.ts` — lista fissa categorie + seed
 - `src/lib/finance/accounts-seed.ts` — lista fissa conti + seed
 - `src/lib/finance/import-parser.ts` — parsing CSV/XLSX con validazione bloccante
@@ -60,8 +61,6 @@ Nessuna modifica di colonne — sostituita solo la categoria seed `ACQUISTI CASA
 - `OPENROUTER_API_KEY` / `OPENROUTER_MODEL` — categorizzazione automatica AI delle transazioni (opzionale; senza, le transazioni non riconosciute restano "da categorizzare")
 
 ## Notes for Future Development
-- Il tasso fiscale (23%, regime forfettario) è una costante `TAX_RATE` in `src/lib/finance/calculations.ts`, non configurabile da UI — vedi `specs/finance-tracker/decisions.md` per il razionale.
-- Fondo Tasse = 23% del fatturato (`Clienti_*`) − imposte pagate nell'anno; il Risparmio è saldo del conto di risparmio − Fondo Tasse. Gli anni con cambio di regime sono in `TAX_REGIME_CHANGES` (stesso file): per il 2026 l'accantonamento gen–ott è fisso a 22.095,33 € e il 23% si applica solo al fatturato da novembre (le imposte pagate in tutto il 2026 restano sottratte). Il riquadro Fondo Tasse in Home mostra le due voci separate; il fatturato usato per il tasso di risparmio resta quello dell'intero anno. Il fondo è cumulativo dal 2026: vedi `docs/features/fatturato-imposte.md`.
 - La categoria `"Clienti_CONSULENZA"` è stata normalizzata con underscore rispetto all'input originale dell'utente per rientrare nella regola "categorie che iniziano con Clienti_" usata nel calcolo del fatturato — verificare con l'utente se il nome o l'intento erano diversi.
 - Il flag `isInternalTransfer` esclude la riga dal Rendiconto/conto economico ma non dal saldo del conto. All'import viene attivato in automatico (`isInternalMovement` in `categorize.ts`) quando la descrizione contiene "giroconto", "ritiro contanti", "prelievo", "prelevamento" o "Trasferimento avviato dall'utente" (prelievo PayPal verso la banca): quelle righe restano senza categoria e non passano né dallo storico né dall'AI. Nell'anteprima la spunta "Interno" si può togliere o mettere riga per riga; dopo l'import resta modificabile dalla transazione. I **prelievi** (uscite con "ritiro contanti", "rit. contanti", "prelievo", "prelevamento") hanno anche la spunta "Prelievo" (che implica "Interno"): alla conferma, nella stessa transazione DB, viene creata un'entrata uguale sul conto "Contanti" (`CASH_ACCOUNT_NAME`), interna e senza categoria, con descrizione "Prelievo da <conto>: …". Così il saldo Contanti sale con i prelievi e scende con le spese in contanti registrate a mano: un saldo che resta alto indica spese non tracciate. L'entrata su Contanti è collegata al prelievo tramite `cashSourceId` (logica in `src/lib/finance/cash-withdrawal.ts`): eliminando il prelievo sparisce anche lei, e modificandone data/importo/descrizione si aggiorna. Anche il form di aggiunta/modifica transazione ha la spunta "Prelievo in contanti" (solo uscite su conti diversi da Contanti), che crea o rimuove l'entrata; l'elenco transazioni restituisce `isCashWithdrawal` per sapere se una riga ce l'ha.
 - Non esiste un conto dedicato per la Carta di Credito BCC: i relativi addebiti si inseriscono come transazioni manuali sotto il conto BCC.
@@ -79,19 +78,11 @@ Nessuna modifica di colonne — sostituita solo la categoria seed `ACQUISTI CASA
 
 ## Home
 
-Sotto il titolo (anche nella pagina Conti) c'è la data dell'ultimo import degli estratti conto, quella scritta a mano in Transazioni (`LastImportNote`). Sei riquadri (`src/app/dashboard/page.tsx`), su due righe: Risparmio, Fondo Tasse, Liquidità c/c; poi Patrimonio, Tasse da pagare (bordo rosso, `variant="alert"`) e Disponibilità (sfondo verde pieno, `variant="solid"`). Le etichette sono brevi e non vanno a capo (troncate se lo spazio non basta).
+Pagina riassuntiva, con una grafica diversa dalle altre (`src/app/dashboard/page.tsx`). In alto il titolo e la data dell'ultimo import (`LastImportNote`, anche nella pagina Conti).
 
-- **Risparmio** = saldo del conto di risparmio − Fondo Tasse.
-- **Fondo Tasse** — vedi sopra (cumulativo dal 2026).
-- **Liquidità c/c** = somma dei saldi dei conti non di risparmio.
-- **Tasse da pagare** = quanto resta da pagare nell'anno corrente + la stima maturata a oggi per l'anno successivo, gli stessi numeri della pagina "Fatturato e imposte" (`getTaxOverview` in `src/lib/finance/tax-overview.ts`).
-- **Patrimonio** = Casa + Fondo pensione + Investimenti. Casa, Investimenti e il valore iniziale del fondo pensione si modificano con la matita (`EditableAmount` → `PUT /api/settings`); al fondo pensione si sommano in automatico le uscite in categoria "FONDO PENSIONE" da `pensionFundSince` (default 1/11/2026) in poi.
-- **Disponibilità** = Liquida (Risparmio + Fondo Tasse + Liquidità c/c − Tasse da pagare) + Bloccata (Patrimonio).
+**Logica di Risparmio e Fondo Tasse** (`getTaxOverview` in `src/lib/finance/tax-overview.ts`): si parte dal saldo del conto di risparmio (Conto Arancio Deposito). Il **Fondo Tasse** è la parte del saldo che copre le tasse maturate a oggi (residuo dell'anno corrente + stima dell'anno successivo, come in "Fatturato e imposte"), mai più del saldo; il **Risparmio** è il resto. Non esiste più l'accantonamento al 23% del fatturato.
 
-### Scenari
-
-Sotto i riquadri della Home (`computeScenarios` in `src/lib/finance/scenarios.ts`, funzione pura). Medie mensili da Analisi costi (gennaio → ultimo mese con dati); "cliente più grande" = categoria `Clienti_*` con più fatturato nell'anno; entrate degli altri clienti = il loro fatturato ÷ gli stessi mesi.
-
-- **Scenario 1 — perdo il lavoro**: A = Risparmio ÷ sopravvivenza; B = (Risparmio + Fondo Tasse − Tasse da pagare) ÷ sopravvivenza.
-- **Scenario 2 — il cliente più grande paga in ritardo**: stessi soldi di A e B ÷ (sopravvivenza + lavorative senza imposte − entrate degli altri clienti). Se le entrate coprono i costi: "Senza limite".
-- **Scenario 3 — perdo il cliente più grande**: taglio mensile = (sopravvivenza + lavorative + extra + viaggi) + 1.000 € da accantonare − entrate degli altri clienti al netto del 23% per le tasse. Se negativo, nessun taglio e mostra quanto avanza.
+1. **Obiettivi** — fascia navy a tutta larghezza (`GoalProgress`): Obiettivo 1, il Risparmio copre `SAFETY_MONTHS_GOAL` (8) mesi di spese di sopravvivenza (media da Analisi costi); Obiettivo 2, il Fondo Tasse copre il 100% delle tasse maturate. Anello di avanzamento, importi, frase incoraggiante per fascia di avanzamento e stima di quando si raggiunge al ritmo di risparmio dell'anno (il fondo tasse si riempie per primo). Calcoli in `computeHomeGoals` (`src/lib/finance/scenarios.ts`).
+2. **Scenario: perdo il lavoro** — mesi coperti: pagate le tasse = Risparmio ÷ sopravvivenza; ignorando le tasse = tutto il Conto Deposito ÷ sopravvivenza.
+3. **Il dettaglio** — Risparmio, Fondo tasse (con le tasse da pagare per anno e quanto manca a coprirle), Liquidità c/c, Patrimonio (casa, investimenti e valore iniziale del fondo pensione modificabili; al fondo si sommano le uscite "FONDO PENSIONE" dal 1/11/2026), Disponibilità = Liquida (Conto Deposito + c/c − tasse da pagare) + Bloccata (patrimonio). Variante `tinted` di `IndicatorCard`, Disponibilità `solid`.
+4. **Quanto hai messo via** — totale dell'anno e colonne mensili impilate (`SavingsChart`): quanto è entrato nel Conto Deposito ogni mese, diviso tra fondo tasse e risparmio con la stessa regola di oggi (`monthlySavingsSplit`: il saldo riempie prima il fondo fino alle tasse da pagare attuali). Mesi negativi sotto la linea dello zero. Colori: slot 1 e 3 della palette validata.
