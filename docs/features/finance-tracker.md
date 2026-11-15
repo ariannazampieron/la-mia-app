@@ -87,3 +87,11 @@ Sotto il titolo (anche nella pagina Conti) c'è la data dell'ultimo import degli
 - **Tasse da pagare** = quanto resta da pagare nell'anno corrente + la stima maturata a oggi per l'anno successivo, gli stessi numeri della pagina "Fatturato e imposte" (`getTaxOverview` in `src/lib/finance/tax-overview.ts`).
 - **Patrimonio** = Casa + Fondo pensione + Investimenti. Casa, Investimenti e il valore iniziale del fondo pensione si modificano con la matita (`EditableAmount` → `PUT /api/settings`); al fondo pensione si sommano in automatico le uscite in categoria "FONDO PENSIONE" da `pensionFundSince` (default 1/11/2026) in poi.
 - **Disponibilità** = Liquida (Risparmio + Fondo Tasse + Liquidità c/c − Tasse da pagare) + Bloccata (Patrimonio).
+
+### Scenari
+
+Sotto i riquadri della Home (`computeScenarios` in `src/lib/finance/scenarios.ts`, funzione pura). Medie mensili da Analisi costi (gennaio → ultimo mese con dati); "cliente più grande" = categoria `Clienti_*` con più fatturato nell'anno; entrate degli altri clienti = il loro fatturato ÷ gli stessi mesi.
+
+- **Scenario 1 — perdo il lavoro**: A = Risparmio ÷ sopravvivenza; B = (Risparmio + Fondo Tasse − Tasse da pagare) ÷ sopravvivenza.
+- **Scenario 2 — il cliente più grande paga in ritardo**: stessi soldi di A e B ÷ (sopravvivenza + lavorative senza imposte − entrate degli altri clienti). Se le entrate coprono i costi: "Senza limite".
+- **Scenario 3 — perdo il cliente più grande**: taglio mensile = (sopravvivenza + lavorative + extra + viaggi) + 1.000 € da accantonare − entrate degli altri clienti al netto del 23% per le tasse. Se negativo, nessun taglio e mostra quanto avanza.

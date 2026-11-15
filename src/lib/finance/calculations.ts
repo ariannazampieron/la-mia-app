@@ -57,6 +57,32 @@ export async function getFatturatoAnnuale(
   return Number(row?.total ?? 0);
 }
 
+/** Revenue of the year per client ("Clienti_*" category name), highest first. */
+export async function getRevenueByClient(
+  userId: string,
+  year: number
+): Promise<{ client: string; total: number }[]> {
+  const rows = await db
+    .select({
+      client: categories.name,
+      total: sql<string>`coalesce(sum(${transactions.amount}), 0)`,
+    })
+    .from(transactions)
+    .innerJoin(categories, eq(transactions.categoryId, categories.id))
+    .where(
+      and(
+        eq(transactions.userId, userId),
+        eq(transactions.type, "income"),
+        eq(categories.isClientRevenueCategory, true),
+        sql`extract(year from ${transactions.date}) = ${year}`
+      )
+    )
+    .groupBy(categories.name);
+  return rows
+    .map((r) => ({ client: r.client, total: Number(r.total) }))
+    .sort((a, b) => b.total - a.total);
+}
+
 /** Total tax payments for the year: sum of expense transactions in the "Imposte" category. */
 export async function getImposteAnnuali(
   userId: string,

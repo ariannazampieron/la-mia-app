@@ -10,14 +10,24 @@ import {
   getFondoTasseBreakdown,
   getRisparmio,
   getLiquiditaDisponibile,
+  getRevenueByClient,
   TAX_RATE,
 } from "@/lib/finance/calculations";
+import { getCostAnalysis } from "@/lib/finance/cost-analysis";
+import { computeScenarios } from "@/lib/finance/scenarios";
+import { ScenarioCard, formatRunway } from "@/components/finance/scenario-card";
 import { IndicatorCard } from "@/components/finance/indicator-card";
 import { EditableAmount } from "@/components/finance/editable-amount";
 import { LastImportNote } from "@/components/finance/last-import-note";
 import { getPatrimonio } from "@/lib/finance/patrimonio";
 import { getTaxOverview } from "@/lib/finance/tax-overview";
 import { getLastStatementImportDate } from "@/lib/finance/user-settings";
+
+const currencyFormatter = new Intl.NumberFormat("it-IT", {
+  style: "currency",
+  currency: "EUR",
+  maximumFractionDigits: 0,
+});
 
 /** Short Italian month name ("ott", "nov") for a 1-based month. */
 function monthName(month: number) {
@@ -52,6 +62,8 @@ export default async function DashboardPage() {
     patrimonio,
     taxOverview,
     lastImportDate,
+    costAnalysis,
+    revenueByClient,
   ] = await Promise.all([
     getFatturatoAnnuale(userId, year),
     getImposteAnnuali(userId, year),
@@ -62,6 +74,8 @@ export default async function DashboardPage() {
     getPatrimonio(userId),
     getTaxOverview(userId),
     getLastStatementImportDate(userId),
+    getCostAnalysis(userId, year),
+    getRevenueByClient(userId, year),
   ]);
 
   // Taxes accrued so far: what's left for this year plus next year's estimate to date.
@@ -86,6 +100,31 @@ export default async function DashboardPage() {
             value: fondo.taxedRevenue * TAX_RATE,
           },
         ];
+
+  const groupAverage = (key: string) =>
+    costAnalysis.groups.find((g) => g.key === key)?.monthlyAverage ?? 0;
+  const [biggestClient, ...otherClients] = revenueByClient;
+  const otherClientsMonthly =
+    costAnalysis.monthsCount > 0
+      ? otherClients.reduce((sum, c) => sum + c.total, 0) /
+        costAnalysis.monthsCount
+      : 0;
+  const scenarios = computeScenarios({
+    risparmio,
+    fondoTasse,
+    tasseDaPagare,
+    survivalMonthly: groupAverage("sopravvivenza"),
+    workMonthly: groupAverage("lavoro"),
+    extraMonthly: groupAverage("extra"),
+    travelMonthly: groupAverage("viaggi"),
+    otherClientsMonthly,
+    taxRate: TAX_RATE,
+    monthlySavingsGoal: 1000,
+  });
+  const biggestClientName =
+    biggestClient?.client.replace(/^Clienti_/, "") ?? "il cliente più grande";
+  const euro = (value: number) => currencyFormatter.format(value);
+  const cut = scenarios.clientLoss.cutNeeded;
 
   const hasData =
     fatturato !== 0 || imposte !== 0 || savingsBalance !== 0 || liquidita !== 0;
@@ -211,6 +250,67 @@ export default async function DashboardPage() {
           ]}
         />
       </div>
+
+      <section className="space-y-4">
+        <div>
+          <h2 className="text-lg font-semibold tracking-tight">Scenari</h2>
+          <p className="text-muted-foreground mt-1 text-sm">
+            Medie mensili di {year} da Analisi costi ({costAnalysis.monthsCount}{" "}
+            mesi); cliente più grande: {biggestClientName}.
+          </p>
+        </div>
+        <div className="grid gap-4 lg:grid-cols-3">
+          <ScenarioCard
+            title="Scenario 1"
+            question="Perdo il lavoro: quanti mesi posso andare avanti?"
+            options={[
+              {
+                label: "Solo con il risparmio",
+                value: formatRunway(scenarios.jobLoss.savingsOnly),
+                detail: `${euro(risparmio)} ÷ ${euro(groupAverage("sopravvivenza"))}/mese di sopravvivenza`,
+              },
+              {
+                label: "Risparmio + fondo tasse, pagate le tasse",
+                value: formatRunway(scenarios.jobLoss.afterTaxes),
+                detail: `${euro(scenarios.jobLoss.savedNetOfTaxes)} ÷ ${euro(groupAverage("sopravvivenza"))}/mese di sopravvivenza`,
+              },
+            ]}
+          />
+          <ScenarioCard
+            title="Scenario 2"
+            question={`${biggestClientName} paga in ritardo e continuo a lavorare: quanto reggo?`}
+            options={[
+              {
+                label: "Solo con il risparmio",
+                value: formatRunway(scenarios.lateClient.savingsOnly),
+                detail: `Uscite nette ${euro(scenarios.lateClient.monthlyBurn)}/mese: sopravvivenza + lavorative − ${euro(otherClientsMonthly)} dagli altri clienti`,
+              },
+              {
+                label: "Risparmio + fondo tasse, pagate le tasse",
+                value: formatRunway(scenarios.lateClient.afterTaxes),
+                detail: `${euro(scenarios.jobLoss.savedNetOfTaxes)} ÷ ${euro(scenarios.lateClient.monthlyBurn)}/mese di uscite nette`,
+              },
+            ]}
+          />
+          <ScenarioCard
+            title="Scenario 3"
+            question={`Perdo ${biggestClientName}: quanto devo tagliare per mettere via ancora 1.000 € al mese?`}
+            options={[
+              {
+                label:
+                  cut > 0
+                    ? "Da tagliare ogni mese"
+                    : "Nessun taglio necessario",
+                value: cut > 0 ? euro(cut) : `+${euro(-cut)}`,
+                detail:
+                  cut > 0
+                    ? `Costi ${euro(scenarios.clientLoss.allCosts)}/mese + 1.000 € da accantonare − ${euro(scenarios.clientLoss.otherClientsNet)} dagli altri clienti (netto 23% tasse)`
+                    : `Oltre ai 1.000 € ti avanzano ${euro(-cut)} al mese`,
+              },
+            ]}
+          />
+        </div>
+      </section>
     </div>
   );
 }
