@@ -10,6 +10,7 @@ App personale per monitorare costi, ricavi e tasso di risparmio, basata sull'imp
 - **Categorizzazione automatica** — le transazioni ricorrenti vengono categorizzate in automatico (pattern storici + AI via OpenRouter); quelle non riconosciute restano segnalate come "da categorizzare".
 - **Transazioni** — tabella filtrabile per conto, categoria, tipo e periodo, con aggiunta/modifica manuale (utile ad esempio per gli addebiti della carta di credito).
 - **Budget & Rendiconto** — budget annuale per categoria e mese, confrontato con il consuntivo reale, con evidenziazione verde/rosso; storico multi-anno.
+- **Analisi costi** — media mensile delle spese per gruppo (sopravvivenza, lavorative, extra, viaggi) con grafico ad anello, tool ricorrenti per fornitore (con segnalazione dei dismessi), telefono, internet e utenze di casa.
 - **Fatturato e imposte** — grafico del fatturato mese per mese, fatturato e incidenza per cliente, imposte ancora da pagare nell'anno corrente e nel successivo con la copertura dal fondo tasse.
 - **Accesso** — login con codice OTP via email (nessuna password, nessuna registrazione pubblica).
 

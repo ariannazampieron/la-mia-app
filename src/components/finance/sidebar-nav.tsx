@@ -11,6 +11,7 @@ import {
   Landmark,
   House,
   ChartColumn,
+  ChartPie,
 } from "lucide-react";
 
 const NAV_ITEMS = [
@@ -26,6 +27,7 @@ const NAV_ITEMS = [
     label: "Fatturato e imposte",
     icon: ChartColumn,
   },
+  { href: "/dashboard/analisi-costi", label: "Analisi costi", icon: ChartPie },
   { href: "/dashboard/casa", label: "Casa", icon: House },
   { href: "/dashboard/accounts", label: "Conti", icon: Landmark },
 ];
