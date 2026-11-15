@@ -16,12 +16,12 @@ La media divide il totale dell'anno per i mesi da gennaio all'ultimo mese con al
 
 ## Spese ricorrenti
 
-- **Tool personali** e **Tool lavoro** (categorie TOOL PERSONALI / TOOL LAVORO): un rigo per fornitore, ricavato dalla descrizione (`merchantKey`: toglie "Paypal *" e "- Pagamento preautorizzato utenza", prende la prima parola; alias in `MERCHANT_ALIASES`: anthropic → claude, luca → prime). **Mensile** = ultimo importo addebitato; **Totale anno** = somma. Eccezioni in `MONTHLY_COST_OVERRIDES`: Netflix conta 4,99 €/mese (la sua quota; lo paga per quattro persone e i rimborsi non sono ancora abbinati), totale = 4,99 × mesi con addebito. **Dismesso** se ha almeno due addebiti e nessuno negli ultimi 45 giorni prima dell'ultima transazione dell'anno (un abbonamento annuale con un solo addebito non viene mai segnato).
+- **Tool personali** e **Tool lavoro** (categorie TOOL PERSONALI / TOOL LAVORO): un rigo per fornitore, ricavato dalla descrizione (`merchantKey`: toglie "Paypal *" e "- Pagamento preautorizzato utenza", prende la prima parola; alias in `MERCHANT_ALIASES`: anthropic → claude, luca → prime, spliiit → spotify). **Mensile** = ultimo importo addebitato; **Totale anno** = somma. Eccezioni in `MONTHLY_COST_OVERRIDES`: Netflix conta 4,99 €/mese (la sua quota; lo paga per quattro persone e i rimborsi non sono ancora abbinati), totale = 4,99 × mesi con addebito. **Dismesso** se ha almeno due addebiti e nessuno negli ultimi 45 giorni prima dell'ultima transazione dell'anno (un abbonamento annuale con un solo addebito non viene mai segnato).
 - **Telefono** e **Internet**: media mensile e totale anno delle rispettive categorie.
 
 ## Utenze casa
 
-Cercate per parola intera nella descrizione di tutte le uscite: Energia elettrica (Alperia), Acqua (Hera), Gas (SGR), Legna (Legna). Solo uscite, i rimborsi in entrata non sono sottratti. Media mensile = totale ÷ mesi dal mese della prima bolletta dell'anno all'ultimo mese con dati (una fornitura iniziata a metà anno non viene diluita sui mesi precedenti; per le bimestrali il conto torna perché si divide per i mesi, non per le bollette). Totale anno.
+Cercate per parola intera nella descrizione di tutte le uscite: Energia elettrica (Alperia), Acqua (Hera), Gas (SGR), Legna (Legna). Bollette meno i rimborsi del fornitore (entrate con lo stesso nome nella descrizione, es. "Bonifico HERA SPA"), mai sotto zero. Media mensile = totale ÷ mesi dal mese della prima bolletta dell'anno all'ultimo mese con dati (una fornitura iniziata a metà anno non viene diluita sui mesi precedenti; per le bimestrali il conto torna perché si divide per i mesi, non per le bollette). Totale anno.
 
 ## File
 

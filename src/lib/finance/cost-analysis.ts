@@ -32,6 +32,8 @@ const DISMISSED_AFTER_DAYS = 45;
 /** Same tool written differently by different banks ("Anthropic* claude sub", "Claude.ai"). */
 const MERCHANT_ALIASES: Record<string, string> = {
   anthropic: "claude",
+  // Spotify is paid through the Spliiit sharing service.
+  spliiit: "spotify",
   // The Prime share is paid to Luca.
   luca: "prime",
 };
@@ -184,7 +186,8 @@ export async function getCostAnalysis(
           )
         )
         .limit(1000),
-      // Per utility: the year's total and the month of its first bill.
+      // Per utility: the year's bills minus the supplier's refunds (incoming payments
+      // matching the same name), and the month of its first bill.
       db
         .select(
           Object.fromEntries(
@@ -193,20 +196,26 @@ export async function getCostAnalysis(
               return [
                 [
                   u.key,
-                  sql<string>`coalesce(sum(case when ${matches} then ${transactions.amount} else 0 end), 0)`,
+                  sql<string>`coalesce(sum(case when ${matches} then (case when ${transactions.type} = 'expense' then ${transactions.amount} else -${transactions.amount} end) else 0 end), 0)`,
                 ],
                 [
                   `${u.key}FirstMonth`,
                   sql<
                     number | null
-                  >`min(case when ${matches} then extract(month from ${transactions.date}) end)::int`,
+                  >`min(case when ${matches} and ${transactions.type} = 'expense' then extract(month from ${transactions.date}) end)::int`,
                 ],
               ];
             })
           ) as Record<string, ReturnType<typeof sql<string | number | null>>>
         )
         .from(transactions)
-        .where(realExpense),
+        .where(
+          and(
+            eq(transactions.userId, userId),
+            eq(transactions.isInternalTransfer, false),
+            inYear
+          )
+        ),
     ]);
 
   const monthsCount = coverage?.lastMonth ?? 0;
@@ -287,7 +296,7 @@ export async function getCostAnalysis(
     ],
     // A supply that started mid-year averages from its first bill, not from January.
     utilities: UTILITIES.map((u) => {
-      const total = Number(utilityTotals?.[u.key] ?? 0);
+      const total = Math.max(Number(utilityTotals?.[u.key] ?? 0), 0);
       const firstMonth =
         Number(utilityTotals?.[`${u.key}FirstMonth`] ?? 1) || 1;
       const months = Math.max(monthsCount - firstMonth + 1, 1);
