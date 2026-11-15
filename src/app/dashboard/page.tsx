@@ -23,7 +23,7 @@ import { EditableAmount } from "@/components/finance/editable-amount";
 import { LastImportNote } from "@/components/finance/last-import-note";
 import { GoalProgress } from "@/components/finance/goal-progress";
 import { SavingsChart } from "@/components/finance/savings-chart";
-import { MONTH_LABELS } from "@/components/finance/conto-economico-table";
+import { MONTH_LABELS } from "@/lib/finance/months";
 
 const currencyFormatter = new Intl.NumberFormat("it-IT", {
   style: "currency",

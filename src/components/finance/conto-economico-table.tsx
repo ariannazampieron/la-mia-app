@@ -14,20 +14,9 @@ import { cn } from "@/lib/utils";
 import { ChevronRight } from "lucide-react";
 import { groupExpenseCategories } from "@/lib/finance/expense-groups";
 
-export const MONTH_LABELS = [
-  "Gen",
-  "Feb",
-  "Mar",
-  "Apr",
-  "Mag",
-  "Giu",
-  "Lug",
-  "Ago",
-  "Set",
-  "Ott",
-  "Nov",
-  "Dic",
-];
+import { MONTH_LABELS } from "@/lib/finance/months";
+
+export { MONTH_LABELS };
 
 export interface ContoEconomicoCategory {
   id: string;
