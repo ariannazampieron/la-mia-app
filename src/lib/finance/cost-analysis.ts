@@ -6,6 +6,8 @@ import { groupExpenseCategories } from "@/lib/finance/expense-groups";
 /** Extra-expense categories left out of the "extra" average, each handled on its own (or not at all). */
 const EXCLUDED_FROM_EXTRA = ["ACCANTONAMENTO", "VIAGGI"];
 const TRAVEL_CATEGORY = "VIAGGI";
+/** Shown as its own part, out of the work expenses. */
+const TAX_CATEGORY = "IMPOSTE";
 const TOOL_CATEGORIES = {
   personali: "TOOL PERSONALI",
   lavoro: "TOOL LAVORO",
@@ -28,7 +30,17 @@ const UTILITIES = [
 const DISMISSED_AFTER_DAYS = 45;
 
 /** Same tool written differently by different banks ("Anthropic* claude sub", "Claude.ai"). */
-const MERCHANT_ALIASES: Record<string, string> = { anthropic: "claude" };
+const MERCHANT_ALIASES: Record<string, string> = {
+  anthropic: "claude",
+  // The Prime share is paid to Luca.
+  luca: "prime",
+};
+
+/**
+ * Tools whose charge isn't what they really cost her: Netflix is paid for four people and
+ * the others pay her back (refunds not matched yet), so it counts as her own share.
+ */
+const MONTHLY_COST_OVERRIDES: Record<string, number> = { netflix: 4.99 };
 
 /** "Paypal *netflix", "NETFLIX SERVICES ITALY SRL - Pagamento preautorizzato utenza" → "netflix". */
 export function merchantKey(description: string): string {
@@ -44,7 +56,7 @@ export function merchantKey(description: string): string {
 }
 
 export interface CostGroup {
-  key: "sopravvivenza" | "lavoro" | "extra" | "viaggi";
+  key: "sopravvivenza" | "lavoro" | "extra" | "viaggi" | "imposte";
   label: string;
   total: number;
   monthlyAverage: number;
@@ -93,10 +105,15 @@ function buildRecurring(
       const last = sorted[sorted.length - 1];
       const daysSinceLast =
         (reference - new Date(last.date).getTime()) / 86_400_000;
+      const override = MONTHLY_COST_OVERRIDES[key];
+      const monthsCharged = new Set(sorted.map((c) => c.date.slice(0, 7))).size;
       return {
         name: key.charAt(0).toUpperCase() + key.slice(1),
-        monthly: last.amount,
-        yearTotal: sorted.reduce((sum, c) => sum + c.amount, 0),
+        monthly: override ?? last.amount,
+        yearTotal:
+          override !== undefined
+            ? override * monthsCharged
+            : sorted.reduce((sum, c) => sum + c.amount, 0),
         lastChargeDate: last.date,
         dismissed: sorted.length >= 2 && daysSinceLast > DISMISSED_AFTER_DAYS,
       };
@@ -167,17 +184,26 @@ export async function getCostAnalysis(
           )
         )
         .limit(1000),
+      // Per utility: the year's total and the month of its first bill.
       db
         .select(
           Object.fromEntries(
-            UTILITIES.map((u) => [
-              u.key,
-              sql<string>`coalesce(sum(case when ${transactions.description} ~* ${`\\m${u.pattern}\\M`} then ${transactions.amount} else 0 end), 0)`,
-            ])
-          ) as Record<
-            (typeof UTILITIES)[number]["key"],
-            ReturnType<typeof sql<string>>
-          >
+            UTILITIES.flatMap((u) => {
+              const matches = sql`${transactions.description} ~* ${`\\m${u.pattern}\\M`}`;
+              return [
+                [
+                  u.key,
+                  sql<string>`coalesce(sum(case when ${matches} then ${transactions.amount} else 0 end), 0)`,
+                ],
+                [
+                  `${u.key}FirstMonth`,
+                  sql<
+                    number | null
+                  >`min(case when ${matches} then extract(month from ${transactions.date}) end)::int`,
+                ],
+              ];
+            })
+          ) as Record<string, ReturnType<typeof sql<string | number | null>>>
         )
         .from(transactions)
         .where(realExpense),
@@ -207,13 +233,19 @@ export async function getCostAnalysis(
       label: "Sopravvivenza",
       total: groupTotal("sopravvivenza"),
     },
-    { key: "lavoro", label: "Lavorative", total: groupTotal("lavoro") },
+    {
+      key: "lavoro",
+      label: "Lavorative",
+      total: groupTotal("lavoro", [TAX_CATEGORY]),
+    },
     {
       key: "extra",
       label: "Extra",
       total: groupTotal("extra", EXCLUDED_FROM_EXTRA),
     },
     { key: "viaggi", label: "Viaggi", total: sumOf([TRAVEL_CATEGORY]) },
+    // Last so the other parts keep their colors (slot 5 of the palette).
+    { key: "imposte", label: "Imposte", total: sumOf([TAX_CATEGORY]) },
   ].map((g) => ({
     ...g,
     key: g.key as CostGroup["key"],
@@ -253,8 +285,18 @@ export async function getCostAnalysis(
       averageItem("Telefono", sumOf(["TELEFONO"])),
       averageItem("Internet", sumOf(["INTERNET"])),
     ],
-    utilities: UTILITIES.map((u) =>
-      averageItem(u.label, Number(utilityTotals?.[u.key] ?? 0), u.supplier)
-    ),
+    // A supply that started mid-year averages from its first bill, not from January.
+    utilities: UTILITIES.map((u) => {
+      const total = Number(utilityTotals?.[u.key] ?? 0);
+      const firstMonth =
+        Number(utilityTotals?.[`${u.key}FirstMonth`] ?? 1) || 1;
+      const months = Math.max(monthsCount - firstMonth + 1, 1);
+      return {
+        label: u.label,
+        detail: u.supplier,
+        monthlyAverage: total > 0 && monthsCount > 0 ? total / months : 0,
+        yearTotal: total,
+      };
+    }),
   };
 }

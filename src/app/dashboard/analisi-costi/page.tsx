@@ -126,9 +126,6 @@ export default function AnalisiCostiPage() {
                   value: g.monthlyAverage,
                 }))}
               />
-              <p className="text-muted-foreground mt-4 text-xs">
-                Extra esclude Accantonamento e Viaggi; Viaggi è a parte.
-              </p>
             </CardContent>
           </Card>
 

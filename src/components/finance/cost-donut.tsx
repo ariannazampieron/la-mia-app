@@ -13,8 +13,8 @@ const percentFormatter = new Intl.NumberFormat("it-IT", {
   maximumFractionDigits: 0,
 });
 
-/** Categorical slots 1–4 of the validated chart palette, in fixed order. */
-const SERIES_COLORS = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100"];
+/** Categorical slots 1–5 of the validated chart palette, in fixed order. */
+const SERIES_COLORS = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4"];
 
 const RADIUS = 80;
 const STROKE = 24;
