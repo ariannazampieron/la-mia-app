@@ -61,6 +61,8 @@ These map to `src/app/globals.css` (`@theme` block): `--background`, `--foregrou
 
 Calm and precise, first-person-singular. No gamification. Unchanged from the previous revision.
 
+**Exception — Home** (user request, 2026-11-15): the Home is the summary page and must look different from the others and be motivating. It opens with a full-width navy hero holding the two savings goals (progress rings in teal, an encouraging line per progress band, time-to-goal). Encouragement stays calm and plain — still no emoji, no badges or points. Below it, detail cards use the filled `tinted` variant and larger figures; the other pages keep the white, labeled cockpit look.
+
 ## Anti-patterns for this app
 
 - No emoji anywhere in the UI
