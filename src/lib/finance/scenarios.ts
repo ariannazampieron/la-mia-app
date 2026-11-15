@@ -65,27 +65,3 @@ export function computeHomeGoals({
     },
   };
 }
-
-/**
- * How the savings account grew month by month, split as the Home splits it today: the
- * balance fills the tax fund first (up to the taxes to pay), the rest is savings.
- * Returns, per month, how much each part grew (negative when money was taken out).
- */
-export function monthlySavingsSplit(
-  yearOpening: number,
-  monthEnd: number[],
-  taxTarget: number
-): { fondoTasse: number; risparmio: number }[] {
-  const split = (balance: number) => {
-    const fondo = Math.min(Math.max(balance, 0), taxTarget);
-    return { fondo, risparmio: balance - fondo };
-  };
-  return monthEnd.map((balance, i) => {
-    const before = split(i === 0 ? yearOpening : monthEnd[i - 1]);
-    const after = split(balance);
-    return {
-      fondoTasse: after.fondo - before.fondo,
-      risparmio: after.risparmio - before.risparmio,
-    };
-  });
-}

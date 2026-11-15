@@ -106,56 +106,6 @@ export async function getSavingsAccount(
   return { ...account, balance: await getAccountBalance(account.id) };
 }
 
-/**
- * Savings account balance at the start of `year` and at the end of each of its months
- * (index 0 = January), from its opening balance plus every transaction on it.
- */
-export async function getSavingsMonthlyBalances(
-  accountId: string,
-  year: number
-): Promise<{ yearOpening: number; monthEnd: number[] }> {
-  const signedAmount = sql<string>`coalesce(sum(case when ${transactions.type} = 'income' then ${transactions.amount} else -${transactions.amount} end), 0)`;
-  const [[account], [before], monthly] = await Promise.all([
-    db
-      .select({ openingBalance: financeAccounts.openingBalance })
-      .from(financeAccounts)
-      .where(eq(financeAccounts.id, accountId))
-      .limit(1),
-    db
-      .select({ total: signedAmount })
-      .from(transactions)
-      .where(
-        and(
-          eq(transactions.accountId, accountId),
-          sql`${transactions.date} < ${`${year}-01-01`}`
-        )
-      ),
-    db
-      .select({
-        month: sql<number>`extract(month from ${transactions.date})::int`,
-        total: signedAmount,
-      })
-      .from(transactions)
-      .where(
-        and(
-          eq(transactions.accountId, accountId),
-          sql`extract(year from ${transactions.date}) = ${year}`
-        )
-      )
-      .groupBy(sql`extract(month from ${transactions.date})`),
-  ]);
-  const yearOpening =
-    Number(account?.openingBalance ?? 0) + Number(before?.total ?? 0);
-  const netByMonth = new Map(monthly.map((m) => [m.month, Number(m.total)]));
-  const monthEnd: number[] = [];
-  let balance = yearOpening;
-  for (let month = 1; month <= 12; month++) {
-    balance += netByMonth.get(month) ?? 0;
-    monthEnd.push(balance);
-  }
-  return { yearOpening, monthEnd };
-}
-
 /** Liquidità disponibile = somma dei saldi di tutti i conti tranne quello di risparmio. */
 export async function getLiquiditaDisponibile(userId: string): Promise<number> {
   const nonSavingsAccounts = await db

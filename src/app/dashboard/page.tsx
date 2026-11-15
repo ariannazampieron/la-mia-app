@@ -4,17 +4,15 @@ import { requireAuth } from "@/lib/session";
 import {
   getFatturatoAnnuale,
   getLiquiditaDisponibile,
-  getSavingsAccount,
-  getSavingsMonthlyBalances,
 } from "@/lib/finance/calculations";
 import { getCostAnalysis } from "@/lib/finance/cost-analysis";
 import { getPatrimonio } from "@/lib/finance/patrimonio";
 import { getTaxOverview } from "@/lib/finance/tax-overview";
 import { getLastStatementImportDate } from "@/lib/finance/user-settings";
+import { getMonthlySaved } from "@/lib/finance/monthly-savings";
 import {
   computeHomeGoals,
   formatRunway,
-  monthlySavingsSplit,
   SAFETY_MONTHS_GOAL,
 } from "@/lib/finance/scenarios";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -52,7 +50,6 @@ export default async function DashboardPage() {
     liquidita,
     patrimonio,
     lastImportDate,
-    savingsAccount,
   ] = await Promise.all([
     getTaxOverview(userId),
     getCostAnalysis(userId, year),
@@ -60,11 +57,10 @@ export default async function DashboardPage() {
     getLiquiditaDisponibile(userId),
     getPatrimonio(userId),
     getLastStatementImportDate(userId),
-    getSavingsAccount(userId),
   ]);
-  const savingsHistory = savingsAccount
-    ? await getSavingsMonthlyBalances(savingsAccount.id, year)
-    : null;
+  // Months from January to the last one with data, as in Rendiconto and Analisi costi.
+  const monthsShown = Math.max(costAnalysis.monthsCount, 1);
+  const savedByMonth = await getMonthlySaved(userId, year, monthsShown);
 
   const { savingsBalance, risparmio, fondoTasse, tasseDaPagare } = taxOverview;
   const survivalMonthly =
@@ -78,24 +74,12 @@ export default async function DashboardPage() {
     survivalMonthly,
   });
 
-  // What went into the savings account each month so far, split like today's balance.
-  const monthsShown = Math.max(costAnalysis.monthsCount, 1);
-  const savedByMonth = savingsHistory
-    ? monthlySavingsSplit(
-        savingsHistory.yearOpening,
-        savingsHistory.monthEnd,
-        tasseDaPagare
-      ).slice(0, monthsShown)
-    : [];
-  const savedToFund = savedByMonth.reduce((s, m) => s + m.fondoTasse, 0);
-  const savedToSavings = savedByMonth.reduce((s, m) => s + m.risparmio, 0);
-  const savedTotal = savedToFund + savedToSavings;
+  const savedTotal = savedByMonth.reduce((sum, m) => sum + m.saved, 0);
+  // Pace used to estimate when the goals are reached.
   const monthlyPace = savedTotal / monthsShown;
   const bestMonth = savedByMonth.reduce(
     (best, m, i) =>
-      m.fondoTasse + m.risparmio > best.total
-        ? { index: i, total: m.fondoTasse + m.risparmio }
-        : best,
+      m.saved > best.total ? { index: i, total: m.saved } : best,
     { index: -1, total: 0 }
   );
 
@@ -109,7 +93,7 @@ export default async function DashboardPage() {
   const hasData = savingsBalance !== 0 || liquidita !== 0 || fatturato !== 0;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-14">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-3xl font-bold tracking-tight">Home</h1>
         <LastImportNote date={lastImportDate} />
@@ -321,29 +305,22 @@ export default async function DashboardPage() {
       <Card>
         <CardHeader className="space-y-1">
           <CardTitle className="text-muted-foreground text-[11px] font-semibold tracking-wider uppercase">
-            Quanto hai messo via nel {year}
+            Quanto hai risparmiato davvero nel {year}
           </CardTitle>
           <p className="font-mono text-4xl font-bold tracking-tight tabular-nums">
             {savedTotal >= 0 ? "+" : ""}
             {euro(savedTotal)}
           </p>
           <p className="text-muted-foreground text-sm">
-            {euro(savedToFund)} nel fondo tasse e {euro(savedToSavings)} di
-            risparmio
+            Entrate meno uscite di ogni mese, in media {euro(monthlyPace)} al
+            mese
             {bestMonth.index >= 0 &&
               ` · mese migliore: ${MONTH_LABELS[bestMonth.index].toLowerCase()} (+${euro(bestMonth.total)})`}
             .
           </p>
         </CardHeader>
         <CardContent>
-          {savedByMonth.length > 0 ? (
-            <SavingsChart months={savedByMonth} />
-          ) : (
-            <p className="text-muted-foreground text-sm">
-              Nessun conto di risparmio trovato: imposta il Conto Deposito nella
-              pagina Conti.
-            </p>
-          )}
+          <SavingsChart months={savedByMonth} />
         </CardContent>
       </Card>
     </div>
