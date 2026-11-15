@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, Pencil, Check } from "lucide-react";
 import { CARD_TONES, type CardTone } from "@/lib/finance/card-tones";
 import type { CasaSectionKey } from "@/lib/finance/casa-sections";
+import { CasaDetailsDialog } from "@/components/finance/casa-details-dialog";
 
 const currencyFormatter = new Intl.NumberFormat("it-IT", {
   style: "currency",
@@ -130,6 +131,7 @@ export function CasaSectionCard({
             </div>
           ))}
         </dl>
+        <CasaDetailsDialog sectionKey={sectionKey} label={label} />
       </CardContent>
     </Card>
   );

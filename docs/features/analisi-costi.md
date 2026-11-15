@@ -6,7 +6,7 @@ Pagina `/dashboard/analisi-costi` (voce "Analisi costi" nel menu). Anno scelto c
 
 Grafico ad anello con cinque parti, ognuna con la sua media mensile e la percentuale sul totale:
 
-- **Sopravvivenza**: il gruppo di `src/lib/finance/expense-groups.ts`
+- **Sopravvivenza**: il gruppo di `src/lib/finance/expense-groups.ts`, meno i rimborsi delle utenze (entrate in categoria UTENZE o con Alperia/Hera/SGR/Legna nella descrizione, contate una volta): sono i costi che restano se il lavoro si ferma
 - **Lavorative**: il gruppo, senza IMPOSTE
 - **Extra**: il gruppo Spese extra senza ACCANTONAMENTO e VIAGGI
 - **Viaggi**: la categoria VIAGGI

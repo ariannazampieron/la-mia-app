@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { categories, transactions } from "@/lib/schema";
-import { and, eq, inArray, isNotNull, sql } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, or, sql } from "drizzle-orm";
 import { groupExpenseCategories } from "@/lib/finance/expense-groups";
 
 /** Extra-expense categories left out of the "extra" average, each handled on its own (or not at all). */
@@ -25,6 +25,9 @@ const UTILITIES = [
   { key: "gas", label: "Gas", supplier: "SGR", pattern: "sgr" },
   { key: "legna", label: "Legna", supplier: "Legna", pattern: "legna" },
 ] as const;
+
+/** Income category holding utility refunds (same rule as the Casa page). */
+const UTILITY_REFUND_CATEGORY = "UTENZE";
 
 /** A tool with at least two charges and none in this many days of data is shown as dismissed. */
 const DISMISSED_AFTER_DAYS = 45;
@@ -138,85 +141,108 @@ export async function getCostAnalysis(
     inYear
   );
 
-  const [categoryTotals, [coverage], toolCharges, [utilityTotals]] =
-    await Promise.all([
-      db
-        .select({
-          name: categories.name,
-          total: sql<string>`coalesce(sum(${transactions.amount}), 0)`,
-        })
-        .from(transactions)
-        .innerJoin(categories, eq(transactions.categoryId, categories.id))
-        .where(realExpense)
-        .groupBy(categories.name),
-      // Months to average over: January up to the last month with categorized data (as in
-      // Rendiconto); the latest transaction date is the reference for dismissed tools.
-      db
-        .select({
-          lastMonth: sql<
-            number | null
-          >`max(extract(month from ${transactions.date}))::int`,
-          lastDate: sql<string | null>`max(${transactions.date})::text`,
-        })
-        .from(transactions)
-        .where(
-          and(
-            eq(transactions.userId, userId),
-            eq(transactions.isInternalTransfer, false),
-            isNotNull(transactions.categoryId),
-            inYear
-          )
-        ),
-      db
-        .select({
-          date: transactions.date,
-          description: transactions.description,
-          amount: transactions.amount,
-          category: categories.name,
-        })
-        .from(transactions)
-        .innerJoin(categories, eq(transactions.categoryId, categories.id))
-        .where(
-          and(
-            realExpense,
-            inArray(categories.name, [
-              TOOL_CATEGORIES.personali,
-              TOOL_CATEGORIES.lavoro,
-            ])
+  const [
+    categoryTotals,
+    [coverage],
+    toolCharges,
+    [utilityTotals],
+    [utilityRefunds],
+  ] = await Promise.all([
+    db
+      .select({
+        name: categories.name,
+        total: sql<string>`coalesce(sum(${transactions.amount}), 0)`,
+      })
+      .from(transactions)
+      .innerJoin(categories, eq(transactions.categoryId, categories.id))
+      .where(realExpense)
+      .groupBy(categories.name),
+    // Months to average over: January up to the last month with categorized data (as in
+    // Rendiconto); the latest transaction date is the reference for dismissed tools.
+    db
+      .select({
+        lastMonth: sql<
+          number | null
+        >`max(extract(month from ${transactions.date}))::int`,
+        lastDate: sql<string | null>`max(${transactions.date})::text`,
+      })
+      .from(transactions)
+      .where(
+        and(
+          eq(transactions.userId, userId),
+          eq(transactions.isInternalTransfer, false),
+          isNotNull(transactions.categoryId),
+          inYear
+        )
+      ),
+    db
+      .select({
+        date: transactions.date,
+        description: transactions.description,
+        amount: transactions.amount,
+        category: categories.name,
+      })
+      .from(transactions)
+      .innerJoin(categories, eq(transactions.categoryId, categories.id))
+      .where(
+        and(
+          realExpense,
+          inArray(categories.name, [
+            TOOL_CATEGORIES.personali,
+            TOOL_CATEGORIES.lavoro,
+          ])
+        )
+      )
+      .limit(1000),
+    // Per utility: the year's bills minus the supplier's refunds (incoming payments
+    // matching the same name), and the month of its first bill.
+    db
+      .select(
+        Object.fromEntries(
+          UTILITIES.flatMap((u) => {
+            const matches = sql`${transactions.description} ~* ${`\\m${u.pattern}\\M`}`;
+            return [
+              [
+                u.key,
+                sql<string>`coalesce(sum(case when ${matches} then (case when ${transactions.type} = 'expense' then ${transactions.amount} else -${transactions.amount} end) else 0 end), 0)`,
+              ],
+              [
+                `${u.key}FirstMonth`,
+                sql<
+                  number | null
+                >`min(case when ${matches} and ${transactions.type} = 'expense' then extract(month from ${transactions.date}) end)::int`,
+              ],
+            ];
+          })
+        ) as Record<string, ReturnType<typeof sql<string | number | null>>>
+      )
+      .from(transactions)
+      .where(
+        and(
+          eq(transactions.userId, userId),
+          eq(transactions.isInternalTransfer, false),
+          inYear
+        )
+      ),
+    // Utility refunds: income in the UTENZE category or from a utility supplier
+    // (e.g. "Bonifico HERA SPA" filed under another category), each counted once.
+    db
+      .select({ total: sql<string>`coalesce(sum(${transactions.amount}), 0)` })
+      .from(transactions)
+      .leftJoin(categories, eq(transactions.categoryId, categories.id))
+      .where(
+        and(
+          eq(transactions.userId, userId),
+          eq(transactions.type, "income"),
+          eq(transactions.isInternalTransfer, false),
+          inYear,
+          or(
+            eq(categories.name, UTILITY_REFUND_CATEGORY),
+            sql`${transactions.description} ~* ${`\\m(${UTILITIES.map((u) => u.pattern).join("|")})\\M`}`
           )
         )
-        .limit(1000),
-      // Per utility: the year's bills minus the supplier's refunds (incoming payments
-      // matching the same name), and the month of its first bill.
-      db
-        .select(
-          Object.fromEntries(
-            UTILITIES.flatMap((u) => {
-              const matches = sql`${transactions.description} ~* ${`\\m${u.pattern}\\M`}`;
-              return [
-                [
-                  u.key,
-                  sql<string>`coalesce(sum(case when ${matches} then (case when ${transactions.type} = 'expense' then ${transactions.amount} else -${transactions.amount} end) else 0 end), 0)`,
-                ],
-                [
-                  `${u.key}FirstMonth`,
-                  sql<
-                    number | null
-                  >`min(case when ${matches} and ${transactions.type} = 'expense' then extract(month from ${transactions.date}) end)::int`,
-                ],
-              ];
-            })
-          ) as Record<string, ReturnType<typeof sql<string | number | null>>>
-        )
-        .from(transactions)
-        .where(
-          and(
-            eq(transactions.userId, userId),
-            eq(transactions.isInternalTransfer, false),
-            inYear
-          )
-        ),
-    ]);
+      ),
+  ]);
 
   const monthsCount = coverage?.lastMonth ?? 0;
   const average = (total: number) =>
@@ -240,7 +266,11 @@ export async function getCostAnalysis(
     {
       key: "sopravvivenza",
       label: "Sopravvivenza",
-      total: groupTotal("sopravvivenza"),
+      // Costs that stay if work stops: net of the utility refunds.
+      total: Math.max(
+        groupTotal("sopravvivenza") - Number(utilityRefunds?.total ?? 0),
+        0
+      ),
     },
     {
       key: "lavoro",
